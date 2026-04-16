@@ -192,19 +192,19 @@ export function MonthlySummary({ orders, expenses, products, requests }: Props) 
                            <Wallet className="w-4 h-4 text-pink-500" />
                            <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Monthly Income</span>
                         </div>
-                        <span className="text-2xl font-display font-bold text-zinc-800 dark:text-zinc-100">{m.totalIncome.toLocaleString()} <span className="text-xs font-normal text-zinc-400">lei</span></span>
+                        <span className="text-2xl font-display font-bold text-zinc-800 dark:text-zinc-100">₱ {m.totalIncome.toLocaleString()}</span>
                      </div>
                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                            <ShoppingBag className="w-4 h-4 text-sky-500" />
                            <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Expenses Total</span>
                         </div>
-                        <span className="text-2xl font-display font-bold text-red-500">- {m.totalExpenses.toLocaleString()} <span className="text-xs font-normal text-zinc-400">lei</span></span>
+                        <span className="text-2xl font-display font-bold text-red-500">- ₱ {m.totalExpenses.toLocaleString()}</span>
                      </div>
                      <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
                         <span className="text-sm font-bold text-zinc-600 dark:text-zinc-300">Net Profit</span>
                         <span className={`text-3xl font-display font-bold ${m.profit >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                           {m.profit.toLocaleString()} <span className="text-sm font-normal opacity-60">lei</span>
+                           ₱ {m.profit.toLocaleString()}
                         </span>
                      </div>
                   </div>
@@ -216,7 +216,7 @@ export function MonthlySummary({ orders, expenses, products, requests }: Props) 
                     </div>
                     <div className="bg-emerald-50 dark:bg-emerald-900/30 rounded-2xl p-4 text-center">
                        <p className="text-[10px] font-bold text-emerald-600/60 dark:text-emerald-400/60 uppercase mb-1">Paid In Full</p>
-                       <p className="text-xl font-display font-bold text-emerald-600 dark:text-emerald-400">{m.totalPaid.toLocaleString()} lei</p>
+                       <p className="text-xl font-display font-bold text-emerald-600 dark:text-emerald-400">₱ {m.totalPaid.toLocaleString()}</p>
                     </div>
                   </div>
                 </div>

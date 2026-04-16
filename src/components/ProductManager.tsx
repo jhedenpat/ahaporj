@@ -222,7 +222,7 @@ export function ProductManager({ products, archivedProducts, addProduct, removeP
                               <div className="p-3">
                                 <span className="text-sm font-bold text-gray-800 block truncate leading-tight mb-1">{p.name}</span>
                                 <div className="flex items-center justify-between">
-                                  <span className="text-[10px] font-bold text-pink-500">{p.price.toFixed(2)} lei</span>
+                                  <span className="text-[10px] font-bold text-pink-500">₱ {p.price.toFixed(2)}</span>
                                   <span className="text-[10px] text-muted-foreground bg-gray-50 px-1.5 py-0.5 rounded-md">Stock: {p.stock}</span>
                                 </div>
                               </div>
@@ -263,7 +263,7 @@ export function ProductManager({ products, archivedProducts, addProduct, removeP
                               <div className="p-3">
                                 <span className="text-sm font-bold text-gray-800 block truncate leading-tight mb-1">{p.name}</span>
                                 <div className="flex items-center justify-between">
-                                  <span className="text-[10px] font-bold text-gray-400">{p.price.toFixed(2)} lei</span>
+                                  <span className="text-[10px] font-bold text-gray-400">₱ {p.price.toFixed(2)}</span>
                                   <span className="text-[9px] font-black text-pink-500/60 uppercase">History</span>
                                 </div>
                               </div>
@@ -370,7 +370,7 @@ export function ProductManager({ products, archivedProducts, addProduct, removeP
                     <div className="min-w-0">
                       <p className="font-bold text-gray-800 text-base truncate leading-tight mb-1">{p.name}</p>
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-black text-pink-600 bg-pink-50 px-2 py-0.5 rounded-lg shadow-sm border border-pink-100/30">{p.price.toFixed(2)} lei</span>
+                        <span className="text-xs font-black text-pink-600 bg-pink-50 px-2 py-0.5 rounded-lg shadow-sm border border-pink-100/30">₱ {p.price.toFixed(2)}</span>
                         <div className="flex items-center gap-1 text-[10px] text-gray-400 font-bold bg-gray-50 px-1.5 py-0.5 rounded-md">
                           <span className="w-1 h-1 rounded-full bg-green-400" />
                           Stock: {p.stock}
@@ -416,7 +416,7 @@ export function ProductManager({ products, archivedProducts, addProduct, removeP
                     </div>
                     <div className="min-w-0">
                       <p className="font-bold text-zinc-500 text-sm truncate leading-tight mb-0.5">{p.name}</p>
-                      <p className="text-[10px] text-zinc-400 font-medium tracking-tight">{p.price.toFixed(2)} lei · Stock: {p.stock}</p>
+                      <p className="text-[10px] text-zinc-400 font-medium tracking-tight">₱ {p.price.toFixed(2)} · Stock: {p.stock}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">

@@ -55,7 +55,7 @@ export function ExpenseTracker({ expenses, addExpense, removeExpense }: Props) {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-warning font-bold text-sm">-{e.amount.toFixed(2)} lei</span>
+                <span className="text-warning font-bold text-sm">-₱ {e.amount.toFixed(2)}</span>
                 <button onClick={() => removeExpense(e.id)} className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>

@@ -509,7 +509,7 @@ export default function BuyerDashboard() {
                     <div className="flex flex-col h-full justify-between gap-2">
                       <div className="min-w-0">
                         <h3 className="font-bold text-sm md:text-lg text-zinc-800 dark:text-zinc-100 truncate leading-tight">{product.name}</h3>
-                        <p className="text-pink-600 dark:text-pink-400 font-black text-base md:text-xl mt-0.5">{product.price.toFixed(2)} lei</p>
+                        <p className="text-pink-600 dark:text-pink-400 font-black text-base md:text-xl mt-0.5">₱ {product.price.toFixed(2)}</p>
                         <p className="text-[9px] md:text-[10px] text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-wider">Stock: {product.stock || 0}</p>
                       </div>
 
@@ -632,7 +632,7 @@ export default function BuyerDashboard() {
             <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-6">
               <div className="flex sm:flex-col items-center sm:items-start w-full sm:w-auto justify-between sm:justify-center">
                 <p className="text-[10px] text-zinc-500 dark:text-zinc-400 uppercase tracking-widest font-bold">Total Amount</p>
-                <p className="text-2xl md:text-3xl font-black text-zinc-900 dark:text-white leading-none">{cartTotal.toFixed(2)} lei</p>
+                <p className="text-2xl md:text-3xl font-black text-zinc-900 dark:text-white leading-none">₱ {cartTotal.toFixed(2)}</p>
               </div>
               <Button 
                 onClick={handleCheckout} 

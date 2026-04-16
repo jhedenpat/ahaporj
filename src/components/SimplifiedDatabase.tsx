@@ -59,9 +59,9 @@ export function SimplifiedDatabase({ orders, toggleStatus }: Props) {
 
   const formatCurrency = (num: number) => {
     const n = Number(num);
-    if (isNaN(n)) return '0 lei';
-    if (n > 1e6) return (n / 1e6).toFixed(1) + 'M lei';
-    return n.toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' lei';
+    if (isNaN(n)) return '₱ 0';
+    if (n > 1e6) return '₱ ' + (n / 1e6).toFixed(1) + 'M';
+    return '₱ ' + n.toLocaleString(undefined, { maximumFractionDigits: 0 });
   };
 
   if (!orders || orders.length === 0) {

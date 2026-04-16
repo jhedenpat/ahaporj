@@ -289,7 +289,7 @@ export function useOrders() {
       if (token && chatId) {
         const message = `🛍️ *New Order Received!*\n\n` +
           `👤 *Customer:* ${order.customerName}\n` +
-          `💰 *Total:* ${order.total} lei\n` +
+          `💰 *Total:* ₱ ${order.total}\n` +
           `📦 *Items:* ${order.items.length}\n` +
           `🕒 *Time:* ${new Date().toLocaleTimeString()}\n\n` +
           `Check the dashboard for details! 🥐`;

@@ -42,7 +42,7 @@ export function OrderList({ orders, toggleStatus, removeOrder }: Props) {
               <div className="text-xs text-muted-foreground">
                 {order.items.map(i => `${i.productName} ×${i.quantity}`).join(', ')}
               </div>
-              <div className="text-right text-primary font-bold text-sm mt-1">{order.total.toFixed(2)} lei</div>
+              <div className="text-right text-primary font-bold text-sm mt-1">₱ {order.total.toFixed(2)}</div>
             </div>
           ))}
         </div>

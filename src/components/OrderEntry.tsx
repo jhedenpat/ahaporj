@@ -74,7 +74,7 @@ export function OrderEntry({ products, addOrder }: Props) {
                 className="bg-accent/60 hover:bg-accent border border-border hover:border-primary/40 rounded-xl px-3 py-2 text-left transition-all text-sm hover:shadow-md"
               >
                 <span className="text-foreground font-semibold">{p.name}</span>
-                <span className="text-primary ml-2 font-bold">{p.price.toFixed(2)} lei</span>
+                <span className="text-primary ml-2 font-bold">₱ {p.price.toFixed(2)}</span>
               </button>
             ))}
           </div>
@@ -97,7 +97,7 @@ export function OrderEntry({ products, addOrder }: Props) {
           ))}
           <div className="border-t border-border pt-2 flex justify-between items-center">
             <span className="text-foreground font-bold">Current Total</span>
-            <span className="pink-text font-display text-xl font-bold">{total.toFixed(2)} lei</span>
+            <span className="pink-text font-display text-xl font-bold">₱ {total.toFixed(2)}</span>
           </div>
         </div>
       )}
