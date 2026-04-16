@@ -178,8 +178,15 @@ export function SimplifiedDatabase({ orders, toggleStatus }: Props) {
                               {new Date(order.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                             </div>
                             <div className="min-w-0 flex-1">
-                              <div className="text-base font-black text-zinc-900 dark:text-zinc-50 mb-0.5">
-                                {formatCurrency(Number(order.total))}
+                              <div className="flex items-center gap-2 mb-0.5">
+                                <span className="text-base font-black text-zinc-900 dark:text-zinc-50">
+                                  {formatCurrency(Number(order.total))}
+                                </span>
+                                {(order as any).payment_method && (
+                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-500 uppercase tracking-tighter">
+                                    {(order as any).payment_method}
+                                  </span>
+                                )}
                               </div>
                               <div className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate font-semibold">
                                 {(order.items && Array.isArray(order.items) && order.items.length > 0)
