@@ -163,7 +163,7 @@ function AllReviewsModal({ onClose, telegramUser, onLoginRequired }: AllReviewsM
                 >
                     <Star className="w-5 h-5 mb-1" />
                     Share your experience
-                    <span className="text-[10px] font-normal opacity-70">Write a review about Patricia Bakeshop</span>
+                    <span className="text-[10px] font-normal opacity-70">Write a review about AHA SWEETS</span>
                 </button>
             ) : (
                 <form onSubmit={handleSubmit} className="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-pink-100 dark:border-pink-900/50 shadow-lg shadow-pink-500/5 animate-in slide-in-from-top-2 duration-300">
@@ -264,9 +264,9 @@ export function Footer({ telegramUser = null, onLoginRequired = () => {} }: Foot
     : 0;
 
   const { settings } = useSettings();
-  const telegramName = settings.telegram_bot_name || 'PatriciaBakeShopBot';
+  const telegramName = settings.telegram_bot_name || import.meta.env.VITE_TELEGRAM_BOT_NAME || 'AHAINNOVATION_bot';
   const facebookUrl = settings.facebook_url || 'https://www.facebook.com';
-  const facebookName = settings.facebook_name || 'Patricia Bakeshop';
+  const facebookName = settings.facebook_name || 'AHA SWEETS';
 
   return (
     <>
@@ -296,7 +296,7 @@ export function Footer({ telegramUser = null, onLoginRequired = () => {} }: Foot
                 </div>
                 <div>
                   <h3 className="font-display text-xl italic font-bold text-white leading-tight">
-                    Patricia Bakeshop
+                    AHA SWEETS
                   </h3>
                   <p className="text-xs text-zinc-400 font-medium tracking-wider">Made with love, baked fresh 🩷</p>
                 </div>
@@ -387,7 +387,7 @@ export function Footer({ telegramUser = null, onLoginRequired = () => {} }: Foot
           {/* Divider */}
           <div className="border-t border-zinc-800 pt-5 flex flex-col sm:flex-row items-center justify-between gap-3">
             <p className="text-xs text-zinc-500">
-              © {new Date().getFullYear()} Patricia Bakeshop. All rights reserved.
+              © {new Date().getFullYear()} AHA SWEETS. All rights reserved.
             </p>
             <p className="text-xs text-zinc-600 flex items-center gap-1">
               Made with <span className="text-pink-500">❤️</span> &amp; lots of butter 🧈

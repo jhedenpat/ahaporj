@@ -62,7 +62,7 @@ CREATE POLICY "Settings writable by service"
 
 -- Default settings
 INSERT INTO public.settings (key, value) VALUES
-  ('telegram_bot_name', 'PatriciaBakeShopBot'),
+  ('telegram_bot_name', 'AHAINNOVATION_bot'),
   ('facebook_url', 'https://www.facebook.com'),
   ('tele_bot_token', ''),
   ('admin_tele_id', '')

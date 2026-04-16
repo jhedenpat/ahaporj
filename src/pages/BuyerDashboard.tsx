@@ -117,11 +117,12 @@ export default function BuyerDashboard() {
   };
 
   const handleQuickRequestSubmit = async () => {
+    const botName = import.meta.env.VITE_TELEGRAM_BOT_NAME || 'AHAINNOVATION_bot';
     if (!telegramUser) {
       toast.info('Please first log in via Telegram to complete your request! 🥨');
       // Small delay to let them read the toast, then redirect to the bot
       setTimeout(() => {
-        window.location.href = 'https://t.me/PatriciaBakeShopBot';
+        window.location.href = `https://t.me/${botName}`;
       }, 1200);
       return;
     }
@@ -182,9 +183,10 @@ export default function BuyerDashboard() {
   };
 
   const addToCart = (product: Product) => {
+    const botName = import.meta.env.VITE_TELEGRAM_BOT_NAME || 'AHAINNOVATION_bot';
     if (!telegramUser) {
       if (!isNativeTelegram) {
-        window.location.href = 'https://t.me/PatriciaBakeShopBot';
+        window.location.href = `https://t.me/${botName}`;
         return;
       }
       setShowLoginModal(true);
@@ -334,7 +336,7 @@ export default function BuyerDashboard() {
                 <span className="hidden md:inline">Logout</span>
               </Button>
             ) : !isNativeTelegram ? (
-              <Button variant="ghost" size="sm" onClick={() => window.location.href = 'https://t.me/PatriciaBakeShopBot'} className="text-[#2ba3e3] font-bold hover:bg-[#2ba3e3]/10 rounded-full">
+              <Button variant="ghost" size="sm" onClick={() => window.location.href = `https://t.me/${import.meta.env.VITE_TELEGRAM_BOT_NAME || 'AHAINNOVATION_bot'}`} className="text-[#2ba3e3] font-bold hover:bg-[#2ba3e3]/10 rounded-full">
                 Log In
               </Button>
             ) : null}
@@ -351,7 +353,7 @@ export default function BuyerDashboard() {
               {telegramUser ? (
                 <>Welcome back, <span className="text-pink-600 dark:text-pink-400 font-display italic">{telegramUser.first_name}</span>! 👋</>
               ) : (
-                <>Welcome to <span className="text-pink-600 dark:text-pink-400 font-display italic">Patricia Bakeshop</span>! 👋</>
+                <>Welcome to <span className="text-pink-600 dark:text-pink-400 font-display italic">AHA SWEETS</span>! 👋</>
               )}
             </h1>
             <p className="text-zinc-500 dark:text-zinc-400 text-lg">What sweet treats are you craving today?</p>
@@ -373,7 +375,7 @@ export default function BuyerDashboard() {
             </CardHeader>
             <CardContent className="flex flex-col items-center pb-8 sticky z-10">
               <Button 
-                onClick={() => window.location.href = 'https://t.me/PatriciaBakeShopBot'}
+                onClick={() => window.location.href = `https://t.me/${import.meta.env.VITE_TELEGRAM_BOT_NAME || 'AHAINNOVATION_bot'}`}
                 className="bg-white text-[#2ba3e3] hover:bg-white/90 rounded-full px-8 h-12 font-bold shadow-lg transition-all"
               >
                 <Send className="w-4 h-4 mr-2" />
@@ -548,7 +550,7 @@ export default function BuyerDashboard() {
                       telegramUser={telegramUser}
                       onLoginRequired={() => {
                         if (!isNativeTelegram) {
-                          window.location.href = 'https://t.me/PatriciaBakeShopBot';
+                          window.location.href = `https://t.me/${import.meta.env.VITE_TELEGRAM_BOT_NAME || 'AHAINNOVATION_bot'}`;
                         } else {
                           setShowLoginModal(true);
                         }
@@ -585,7 +587,7 @@ export default function BuyerDashboard() {
           telegramUser={telegramUser}
           onLoginRequired={() => {
             if (!isNativeTelegram) {
-              window.location.href = 'https://t.me/PatriciaBakeShopBot';
+              window.location.href = `https://t.me/${import.meta.env.VITE_TELEGRAM_BOT_NAME || 'AHAINNOVATION_bot'}`;
             } else {
               setShowLoginModal(true);
             }
@@ -598,7 +600,7 @@ export default function BuyerDashboard() {
         telegramUser={telegramUser} 
         onLoginRequired={() => {
           if (!isNativeTelegram) {
-            window.location.href = 'https://t.me/PatriciaBakeShopBot';
+            window.location.href = `https://t.me/${import.meta.env.VITE_TELEGRAM_BOT_NAME || 'AHAINNOVATION_bot'}`;
           } else {
             setShowLoginModal(true);
           }
@@ -688,7 +690,7 @@ export default function BuyerDashboard() {
               </div>
             </div>
             <CardHeader className="text-center pt-8 pb-2">
-              <CardTitle className="text-3xl font-display font-bold text-zinc-800 dark:text-zinc-100">Patricia Bakeshop</CardTitle>
+              <CardTitle className="text-3xl font-display font-bold text-zinc-800 dark:text-zinc-100">AHA SWEETS</CardTitle>
               <CardDescription className="text-base text-zinc-500 dark:text-zinc-400 mt-2">Sign in to place your sweet orders</CardDescription>
             </CardHeader>
             <CardContent className="px-8 pb-10 flex justify-center flex-col items-center gap-4">
