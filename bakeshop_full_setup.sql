@@ -225,9 +225,9 @@ VALUES ('joanlablab', 'maganda')
 ON CONFLICT (username) DO NOTHING;
 
 INSERT INTO public.settings (key, value) VALUES
-  ('telegram_bot_name', 'PatriciaBakeShopBot'),
+  ('telegram_bot_name', 'AHAINNOVATION_bot'),
   ('facebook_url', 'https://www.facebook.com'),
-  ('tele_bot_token', ''),
+  ('tele_bot_token', '8443497818:AAHMU11H1AqufpN5jyeG0ciDLt1W3V-ZUw4'),
   ('admin_tele_id', '')
 ON CONFLICT (key) DO NOTHING;
 
