@@ -30,7 +30,7 @@ const TelegramWidget = ({ onAuth }: { onAuth: (u: any) => void }) => {
       containerRef.current.innerHTML = '';
       const script = document.createElement('script');
       script.src = 'https://telegram.org/js/telegram-widget.js?22';
-      const botName = import.meta.env.VITE_TELEGRAM_BOT_NAME || 'PatriciaBakeShopBot';
+      const botName = import.meta.env.VITE_TELEGRAM_BOT_NAME || 'AHAINNOVATION_bot';
       script.setAttribute('data-telegram-login', botName); 
       script.setAttribute('data-size', 'large');
       script.setAttribute('data-radius', '20');
@@ -822,12 +822,83 @@ export default function BuyerDashboard() {
         </DialogContent>
       </Dialog>
 
-      {/* Global styles for generic effects */}
-      <style dangerouslySetInnerHTML={{__html: `
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .mask-edges { -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%); mask-image: linear-gradient(to right, black 85%, transparent 100%); }
-      `}} />
+      {/* Checkout Selection Modal */}
+      <Dialog open={isCheckoutModalOpen} onOpenChange={setIsCheckoutModalOpen}>
+        <DialogContent className="sm:max-w-[450px] rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl">
+          <div className="bg-gradient-to-br from-pink-500 to-rose-600 p-8 text-white relative">
+            <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+              <ShoppingBag className="w-24 h-24" />
+            </div>
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-display italic font-bold">Checkout</DialogTitle>
+              <p className="text-white/80 text-sm mt-1">Select your preferred payment method</p>
+            </DialogHeader>
+          </div>
+
+          <div className="p-6 space-y-6">
+            <div className="grid gap-3">
+              <label className="text-[10px] font-bold uppercase text-zinc-400 tracking-widest ml-1">Payment Options</label>
+              
+              {/* Cash Option */}
+              <button 
+                onClick={() => setSelectedPayment('cash')}
+                className={`flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${
+                  selectedPayment === 'cash' 
+                  ? 'border-pink-500 bg-pink-50/50' 
+                  : 'border-zinc-100 hover:border-zinc-200'
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${selectedPayment === 'cash' ? 'bg-pink-100' : 'bg-zinc-100'}`}>
+                    💵
+                  </div>
+                  <div className="text-left">
+                    <p className="font-bold text-zinc-900">Cash on Delivery</p>
+                    <p className="text-xs text-zinc-500">Pay when you receive your treats</p>
+                  </div>
+                </div>
+                {selectedPayment === 'cash' && <div className="w-6 h-6 rounded-full bg-pink-500 flex items-center justify-center"><Check className="w-4 h-4 text-white" /></div>}
+              </button>
+
+              {/* Unavailable Options */}
+              {[
+                { id: 'gcash', label: 'GCash', icon: '🔵' },
+                { id: 'paymaya', label: 'PayMaya', icon: '🟢' },
+                { id: 'qrph', label: 'QR PH', icon: '🔳' }
+              ].map(method => (
+                <button 
+                  key={method.id}
+                  disabled
+                  className="flex items-center justify-between p-4 rounded-2xl border-2 border-zinc-50 bg-zinc-50/50 opacity-60 cursor-not-allowed text-left w-full"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl bg-zinc-100 grayscale">
+                      {method.icon}
+                    </div>
+                    <div className="text-left">
+                      <p className="font-bold text-zinc-400">{method.label}</p>
+                      <p className="text-[10px] font-bold text-rose-500 uppercase tracking-tighter">Temporarily Not Available</p>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <div className="pt-4 border-t border-zinc-100 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] text-zinc-400 uppercase font-bold">Total to Pay</p>
+                <p className="text-2xl font-black text-zinc-900">₱{cartTotal.toFixed(2)}</p>
+              </div>
+              <Button 
+                onClick={confirmOrder}
+                className="bg-zinc-900 hover:bg-black text-white px-8 h-12 rounded-2xl font-bold transition-all shadow-lg active:scale-95"
+              >
+                Confirm Order 🥐
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
