@@ -232,25 +232,35 @@ export default function BuyerDashboard() {
     });
   };
 
+  const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<'cash' | 'gcash' | 'paymaya' | 'qrph'>('cash');
+
   const handleCheckout = () => {
+    if (cart.length === 0) return;
+    setIsCheckoutModalOpen(true);
+  };
+
+  const confirmOrder = async () => {
     if (cart.length === 0) return;
     const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     
-    addOrder({
+    await addOrder({
       customerName: telegramUser?.first_name || 'Anonymous',
       telegram_id: telegramUser?.id,
       username: telegramUser?.username || null,
       items: cart,
       total,
       status: 'unpaid',
-      date: new Date().toISOString()
-    });
+      date: new Date().toISOString(),
+      payment_method: selectedPayment
+    } as any);
 
     cart.forEach(item => {
       deductStock(item.productId, item.quantity);
     });
 
     setCart([]);
+    setIsCheckoutModalOpen(false);
     toast.success('Order placed successfully! We will contact you soon.');
   };
 

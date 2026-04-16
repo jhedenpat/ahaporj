@@ -21,6 +21,7 @@ export interface Order {
   items: OrderItem[];
   total: number;
   status: 'paid' | 'unpaid';
+  payment_method?: string;
   date: string; // ISO string
 }
 
