@@ -3,7 +3,7 @@ import { useProducts, useOrders, useProductRequests, useReviews } from '@/hooks/
 import { supabase } from '@/lib/supabase';
 import { Product, OrderItem } from '@/types';
 import { toast } from 'sonner';
-import { ShoppingBag, LogOut, Plus, Minus, Send, User, X, Loader2 } from 'lucide-react';
+import { ShoppingBag, LogOut, Plus, Minus, Send, User, X, Loader2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
