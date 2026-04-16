@@ -459,8 +459,9 @@ export default function BuyerDashboard() {
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-6 pb-20">
             {displayProducts.map(product => {
               const cartItem = cart.find(item => item.productId === product.id);
-              const isSoldOut = (product.stock || 0) <= 0;
-              const showQuickRequest = isSoldOut && (activeFilter === 'best' || activeFilter === 'top' || activeFilter === 'requested');
+              const isArchived = !product.is_available;
+              const isSoldOut = (product.stock || 0) <= 0 || isArchived;
+              const showQuickRequest = (isSoldOut || isArchived) && (activeFilter === 'best' || activeFilter === 'top' || activeFilter === 'requested');
 
               return (
                 <Card key={product.id} className="border border-zinc-100/50 dark:border-zinc-800 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col group rounded-2xl bg-white dark:bg-zinc-900">
@@ -509,13 +510,17 @@ export default function BuyerDashboard() {
                     <div className="flex flex-col h-full justify-between gap-2">
                       <div className="min-w-0">
                         <h3 className="font-bold text-sm md:text-lg text-zinc-800 dark:text-zinc-100 truncate leading-tight">{product.name}</h3>
-                        <p className="text-pink-600 dark:text-pink-400 font-black text-base md:text-xl mt-0.5">₱ {product.price.toFixed(2)}</p>
-                        <p className="text-[9px] md:text-[10px] text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-wider">Stock: {product.stock || 0}</p>
+                        <p className="text-pink-600 dark:text-pink-400 font-black text-base md:text-xl mt-0.5">₱{product.price.toFixed(2)}</p>
+                        <p className="text-[9px] md:text-[10px] text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-wider">
+                          {isArchived ? 'Restocking Soon' : `Stock: ${product.stock || 0}`}
+                        </p>
                       </div>
 
                       <div className="w-full">
-                        {(product.stock || 0) <= 0 ? (
-                          <div className="w-full text-center py-1 bg-zinc-100 dark:bg-zinc-800 text-zinc-400 text-[9px] font-bold rounded-full uppercase">Sold</div>
+                        {isSoldOut ? (
+                          <div className="w-full text-center py-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-400 text-[10px] font-black rounded-full uppercase tracking-widest border border-zinc-200 dark:border-zinc-700">
+                            {isArchived ? 'Sold Out' : 'Out of Stock'}
+                          </div>
                         ) : cartItem ? (
                           <div className="flex items-center justify-between bg-white dark:bg-zinc-800 rounded-full border border-zinc-200 dark:border-zinc-700 p-0.5 shadow-sm">
                             <button 
