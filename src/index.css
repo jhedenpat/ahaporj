@@ -1,0 +1,119 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Nunito:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 340 30% 97%;
+    --foreground: 340 30% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 340 30% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 340 30% 15%;
+
+    --primary: 340 60% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 340 40% 94%;
+    --secondary-foreground: 340 30% 25%;
+
+    --muted: 340 25% 93%;
+    --muted-foreground: 340 15% 50%;
+
+    --accent: 340 50% 90%;
+    --accent-foreground: 340 40% 30%;
+
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 340 30% 88%;
+    --input: 340 30% 88%;
+    --ring: 340 60% 55%;
+
+    --radius: 1rem;
+
+    --pink: 340 60% 55%;
+    --pink-light: 340 50% 90%;
+    --pink-dark: 340 50% 40%;
+    --cream: 35 50% 95%;
+    --rose: 350 70% 65%;
+    --blush: 340 40% 96%;
+    --success: 142 55% 42%;
+    --warning: 38 92% 50%;
+    --gold: 35 60% 50%;
+  }
+  .dark {
+    --background: 340 20% 8%;
+    --foreground: 340 20% 90%;
+    --card: 340 25% 12%;
+    --card-foreground: 340 20% 90%;
+    --popover: 340 25% 12%;
+    --popover-foreground: 340 20% 90%;
+    --primary: 340 60% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 340 30% 18%;
+    --secondary-foreground: 340 30% 80%;
+    --muted: 340 25% 18%;
+    --muted-foreground: 340 15% 65%;
+    --accent: 340 40% 18%;
+    --accent-foreground: 340 40% 85%;
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 340 30% 20%;
+    --input: 340 30% 20%;
+    --ring: 340 60% 55%;
+    --pink-light: 340 50% 30%;
+    --pink-dark: 340 50% 60%;
+    --cream: 35 30% 15%;
+    --blush: 340 30% 15%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Nunito', sans-serif;
+    background-image: url('/images/background.jpg');
+    background-size: 400px;
+    background-repeat: repeat;
+    background-attachment: fixed;
+  }
+  
+  .dark body {
+    background-blend-mode: multiply;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: 'Playfair Display', serif;
+  }
+}
+
+@layer utilities {
+  .pink-gradient {
+    background: linear-gradient(135deg, hsl(340 60% 55%), hsl(350 70% 65%));
+  }
+  .pink-text {
+    background: linear-gradient(135deg, hsl(340 60% 55%), hsl(350 70% 65%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .bakery-card {
+    background: hsl(var(--card) / 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid hsl(var(--border));
+    box-shadow: 0 4px 20px hsl(0 0% 0% / 0.1);
+  }
+  .scallop-border {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 20'%3E%3Cpath d='M0 20 Q20 0 40 20 Q60 0 80 20' fill='none' stroke='%23e8a0b5' stroke-width='1.5'/%3E%3C/svg%3E");
+    background-size: 80px 20px;
+    background-repeat: repeat-x;
+  }
+}
