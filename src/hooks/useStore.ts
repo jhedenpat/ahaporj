@@ -53,7 +53,8 @@ export function useProducts() {
     fetchProducts();
     fetchArchivedProducts();
 
-    const sub = supabase.channel('products-realtime')
+    const channelId = Math.random().toString(36).substring(7);
+    const sub = supabase.channel(`products_rt_${channelId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, (payload) => {
         console.log('RT: Products Update', payload.eventType);
         const newData = payload.new as Product;
@@ -115,10 +116,12 @@ export function useProducts() {
         }
       })
       .subscribe((status) => {
-        if (status === 'SUBSCRIBED') console.log('✅ Products Realtime Active');
+        if (status === 'SUBSCRIBED') console.log(`✅ Products RT active (${channelId})`);
       });
 
-    return () => { supabase.removeChannel(sub); };
+    return () => { 
+      supabase.removeChannel(sub); 
+    };
   }, [fetchProducts, fetchArchivedProducts]);
 
   const addProduct = useCallback(async (name: string, price: number, stock: number, image?: string) => {
@@ -254,7 +257,8 @@ export function useOrders() {
     useEffect(() => {
       fetchOrders();
   
-      const sub = supabase.channel('orders-realtime')
+      const channelId = Math.random().toString(36).substring(7);
+      const sub = supabase.channel(`orders_rt_${channelId}`)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
             console.log('RT: Orders Update', payload.eventType);
             if (payload.eventType === 'INSERT') {
@@ -266,10 +270,12 @@ export function useOrders() {
             }
         })
         .subscribe((status) => {
-          if (status === 'SUBSCRIBED') console.log('✅ Orders Realtime Active');
+          if (status === 'SUBSCRIBED') console.log(`✅ Orders RT active (${channelId})`);
         });
         
-      return () => { supabase.removeChannel(sub); };
+      return () => { 
+        supabase.removeChannel(sub); 
+      };
     }, [fetchOrders]);
 
   const addOrder = useCallback(async (order: Omit<Order, 'id'>) => {
