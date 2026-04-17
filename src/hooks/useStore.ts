@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Product, Order, Expense, ProductRequest, Review } from '@/types';
 import { toast } from 'sonner';
@@ -95,8 +95,7 @@ const fetchers = {
     if (data) {
       const map: Record<string, string> = {};
       data.forEach(s => map[s.key] = s.value);
-      globalSettings = map;
-      notify.settings();
+      globalSettings = map; notify.settings();
     }
   },
   summaries: async () => {
@@ -109,24 +108,38 @@ const fetchers = {
 let isInit = false;
 const initRT = () => {
   if (isInit) return; isInit = true;
-  console.log('⚡ Singleton Realtime Core Active');
+  console.log('⚡ Unified Realtime Engine Active');
   
+  const channel = supabase.channel('shop_v1_sync');
   const tables = ['products', 'orders', 'expenses', 'product_requests', 'reviews', 'admins', 'settings', 'monthly_summaries'];
+  
   tables.forEach(table => {
-    supabase.channel(`global-${table}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table }, () => {
-        if (table === 'products') { fetchers.products(); fetchers.archived(); }
-        else if (table === 'product_requests') fetchers.requests();
-        else if (table === 'monthly_summaries') fetchers.summaries();
-        else (fetchers as any)[table?.replace('product_', '') || table]();
-      })
-      .subscribe();
+    channel.on('postgres_changes', { event: '*', schema: 'public', table }, () => {
+      if (table === 'products') { fetchers.products(); fetchers.archived(); }
+      else if (table === 'product_requests') fetchers.requests();
+      else if (table === 'monthly_summaries') fetchers.summaries();
+      else if (table === 'settings') fetchers.settings();
+      else if (table === 'reviews') fetchers.reviews();
+      else if (table === 'admins') fetchers.admins();
+      else if (table === 'orders') fetchers.orders();
+      else if (table === 'expenses') fetchers.expenses();
+    });
+  });
+
+  channel.subscribe((status) => {
+    if (status === 'SUBSCRIBED') console.log('🟢 Realtime Synced');
+    if (status === 'CHANNEL_ERROR') { isInit = false; setTimeout(initRT, 3000); }
   });
 };
 
-// Initial load
 Object.values(fetchers).forEach(f => f());
 initRT();
+
+const handleRes = async (promise: Promise<any>) => {
+  const { error } = await promise;
+  if (error) { toast.error(error.message); return false; }
+  return true;
+};
 
 // ── CONSUMER HOOKS ──
 
@@ -141,11 +154,11 @@ export function useProducts() {
 
   return {
     products, archivedProducts, loading: false,
-    addProduct: (n: any, p: any, s: any, i: any) => supabase.from('products').insert([{ name: n, price: p, stock: s, image: i, is_available: true }]),
-    removeProduct: (id: any) => supabase.from('products').update({ is_available: false }).eq('id', id),
-    restoreProduct: (id: any) => supabase.from('products').update({ is_available: true }).eq('id', id),
-    updateProduct: (id: any, n: any, p: any, s: any, i: any) => supabase.from('products').update({ name: n, price: p, stock: s, image: i }).eq('id', id),
-    deductStock: (id: any, q: any) => supabase.rpc('deduct_stock', { p_id: id, q: q })
+    addProduct: useCallback(async (n: any, p: any, s: any, i: any) => await handleRes(supabase.from('products').insert([{ name: n, price: p, stock: s, image: i, is_available: true }])), []),
+    removeProduct: useCallback(async (id: any) => await handleRes(supabase.from('products').update({ is_available: false }).eq('id', id)), []),
+    restoreProduct: useCallback(async (id: any) => await handleRes(supabase.from('products').update({ is_available: true }).eq('id', id)), []),
+    updateProduct: useCallback(async (id: any, n: any, p: any, s: any, i: any) => await handleRes(supabase.from('products').update({ name: n, price: p, stock: s, image: i }).eq('id', id)), []),
+    deductStock: useCallback(async (id: any, q: any) => await handleRes(supabase.rpc('deduct_stock', { p_id: id, q: q })), [])
   };
 }
 
@@ -158,12 +171,12 @@ export function useOrders() {
 
   return {
     orders,
-    addOrder: (o: any) => supabase.from('orders').insert([o]),
-    removeOrder: (id: any) => supabase.from('orders').delete().eq('id', id),
-    toggleStatus: async (id: any) => {
+    addOrder: useCallback(async (o: any) => await handleRes(supabase.from('orders').insert([o])), []),
+    removeOrder: useCallback(async (id: any) => await handleRes(supabase.from('orders').delete().eq('id', id)), []),
+    toggleStatus: useCallback(async (id: any) => {
       const target = globalOrders.find(o => o.id === id);
-      if (target) await supabase.from('orders').update({ status: target.status === 'paid' ? 'unpaid' : 'paid' }).eq('id', id);
-    }
+      if (target) await handleRes(supabase.from('orders').update({ status: target.status === 'paid' ? 'unpaid' : 'paid' }).eq('id', id));
+    }, [])
   };
 }
 
@@ -175,8 +188,8 @@ export function useExpenses() {
   }, []);
   return {
     expenses,
-    addExpense: (e: any) => supabase.from('expenses').insert([e]),
-    removeExpense: (id: any) => supabase.from('expenses').delete().eq('id', id)
+    addExpense: useCallback(async (e: any) => await handleRes(supabase.from('expenses').insert([e])), []),
+    removeExpense: useCallback(async (id: any) => await handleRes(supabase.from('expenses').delete().eq('id', id)), [])
   };
 }
 
@@ -188,9 +201,9 @@ export function useProductRequests() {
   }, []);
   return {
     requests, loading: false,
-    updateRequestStatus: (id: any, status: any) => supabase.from('product_requests').update({ status }).eq('id', id),
-    deleteRequest: (id: any) => supabase.from('product_requests').delete().eq('id', id),
-    clearRequestsByStatus: (status: any) => supabase.from('product_requests').delete().eq('status', status)
+    updateRequestStatus: useCallback(async (id: any, status: any) => await handleRes(supabase.from('product_requests').update({ status }).eq('id', id)), []),
+    deleteRequest: useCallback(async (id: any) => await handleRes(supabase.from('product_requests').delete().eq('id', id)), []),
+    clearRequestsByStatus: useCallback(async (status: any) => await handleRes(supabase.from('product_requests').delete().eq('status', status)), [])
   };
 }
 
@@ -203,11 +216,12 @@ export function useReviews(productId?: string) {
   return {
     reviews: productId ? reviews.filter(r => r.product_id === productId) : reviews,
     loading: false,
-    addReview: async (p_id: any, tele_id: any, name: any, rating: any, comment: any, user: any) => {
+    addReview: useCallback(async (p_id: any, tele_id: any, name: any, rating: any, comment: any, user: any) => {
       const { error } = await supabase.from('reviews').insert([{ product_id: p_id, telegram_id: tele_id, first_name: name, rating, comment, username: user }]);
-      if (error) return false; toast.success('Review added!'); return true;
-    },
-    deleteReview: (id: any) => supabase.from('reviews').delete().eq('id', id)
+      if (error) { toast.error(error.message); return false; }
+      toast.success('Review added!'); return true;
+    }, []),
+    deleteReview: useCallback(async (id: any) => await handleRes(supabase.from('reviews').delete().eq('id', id)), [])
   };
 }
 
@@ -219,10 +233,9 @@ export function useSettings() {
   }, []);
   return {
     settings,
-    updateSetting: async (key: string, value: string) => {
-      await supabase.from('settings').upsert({ key, value });
-      toast.success('Settings updated!');
-    }
+    updateSetting: useCallback(async (key: string, value: string) => {
+      if (await handleRes(supabase.from('settings').upsert({ key, value }))) toast.success('Settings updated!');
+    }, [])
   };
 }
 
@@ -234,19 +247,18 @@ export function useAdmins() {
   }, []);
   return {
     admins,
-    addAdmin: async (username: any, password: any) => {
+    addAdmin: useCallback(async (username: any, password: any) => {
       const { error } = await supabase.from('admins').insert([{ username, password }]);
       if (error) { toast.error(error.message); return false; }
       toast.success('Admin added!'); return true;
-    },
-    updateAdmin: async (id: any, username: any, password: any) => {
+    }, []),
+    updateAdmin: useCallback(async (id: any, username: any, password: any) => {
       const updates: any = { username };
       if (password) updates.password = password;
-      const { error } = await supabase.from('admins').update(updates).eq('id', id);
-      if (error) { toast.error(error.message); return false; }
-      toast.success('Admin updated!'); return true;
-    },
-    deleteAdmin: (id: any) => supabase.from('admins').delete().eq('id', id)
+      if (await handleRes(supabase.from('admins').update(updates).eq('id', id))) { toast.success('Admin updated!'); return true; }
+      return false;
+    }, []),
+    deleteAdmin: useCallback(async (id: any) => await handleRes(supabase.from('admins').delete().eq('id', id)), [])
   };
 }
 
@@ -258,9 +270,8 @@ export function useMonthlySummaries() {
   }, []);
   return {
     summaries, loading: false,
-    saveSnapshot: async (data: any) => {
-      const { error } = await supabase.from('monthly_summaries').upsert(data);
-      if (error) toast.error(error.message); else toast.success('Snapshot saved!');
-    }
+    saveSnapshot: useCallback(async (data: any) => {
+      if (await handleRes(supabase.from('monthly_summaries').upsert(data))) toast.success('Snapshot saved!');
+    }, [])
   };
 }
