@@ -1,297 +1,266 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Product, Order, Expense, ProductRequest, Review } from '@/types';
 import { toast } from 'sonner';
 
-// ── SINGLETON STATE (Outside of hooks to share across all components) ──
+// ── TYPES (Locally defined for build stability) ──
+export interface Admin {
+  id: string;
+  username: string;
+  created_at: string;
+}
+
+export interface MonthlySummary {
+  id: string;
+  month: number;
+  year: number;
+  total_revenue: number;
+  total_expenses: number;
+  net_profit: number;
+  total_orders: number;
+  paid_orders: number;
+  unpaid_orders: number;
+  notes?: string;
+  updated_at: string;
+}
+
+// ── SINGLETON STATE ──
 let globalProducts: Product[] = [];
-let globalArchivedProducts: Product[] = [];
+let globalArchived: Product[] = [];
 let globalOrders: Order[] = [];
 let globalExpenses: Expense[] = [];
 let globalRequests: ProductRequest[] = [];
 let globalReviews: Review[] = [];
+let globalAdmins: Admin[] = [];
+let globalSettings: Record<string, string> = {};
+let globalSummaries: MonthlySummary[] = [];
 
-const productListeners = new Set<(p: Product[]) => void>();
-const archivedProductListeners = new Set<(p: Product[]) => void>();
-const orderListeners = new Set<(o: Order[]) => void>();
-const expenseListeners = new Set<(e: Expense[]) => void>();
-const requestListeners = new Set<(r: ProductRequest[]) => void>();
-const reviewListeners = new Set<(r: Review[]) => void>();
+const listeners = {
+  products: new Set<(p: Product[]) => void>(),
+  archived: new Set<(p: Product[]) => void>(),
+  orders: new Set<(o: Order[]) => void>(),
+  expenses: new Set<(e: Expense[]) => void>(),
+  requests: new Set<(r: ProductRequest[]) => void>(),
+  reviews: new Set<(r: Review[]) => void>(),
+  admins: new Set<(a: Admin[]) => void>(),
+  settings: new Set<(s: Record<string, string>) => void>(),
+  summaries: new Set<(s: MonthlySummary[]) => void>(),
+};
 
-// Helper to notify all listeners
-const notifyProducts = () => productListeners.forEach(l => l([...globalProducts]));
-const notifyArchived = () => archivedProductListeners.forEach(l => l([...globalArchivedProducts]));
-const notifyOrders = () => orderListeners.forEach(l => l([...globalOrders]));
-const notifyExpenses = () => expenseListeners.forEach(l => l([...globalExpenses]));
-const notifyRequests = () => requestListeners.forEach(l => l([...globalRequests]));
-const notifyReviews = () => reviewListeners.forEach(l => l([...globalReviews]));
+// ── NOTIFIERS ──
+const notify = {
+  products: () => listeners.products.forEach(l => l([...globalProducts])),
+  archived: () => listeners.archived.forEach(l => l([...globalArchived])),
+  orders: () => listeners.orders.forEach(l => l([...globalOrders])),
+  expenses: () => listeners.expenses.forEach(l => l([...globalExpenses])),
+  requests: () => listeners.requests.forEach(l => l([...globalRequests])),
+  reviews: () => listeners.reviews.forEach(l => l([...globalReviews])),
+  admins: () => listeners.admins.forEach(l => l([...globalAdmins])),
+  settings: () => listeners.settings.forEach(l => l({ ...globalSettings })),
+  summaries: () => listeners.summaries.forEach(l => l([...globalSummaries])),
+};
 
-// ── INITIAL FETCHERS ──
-const fetchProducts = async () => {
-  const { data } = await supabase.from('products').select('*').eq('is_available', true).order('name');
-  if (data) {
-    globalProducts = data as Product[];
-    notifyProducts();
+// ── FETCHERS ──
+const fetchers = {
+  products: async () => {
+    const { data } = await supabase.from('products').select('*').eq('is_available', true).order('name');
+    if (data) { globalProducts = data; notify.products(); }
+  },
+  archived: async () => {
+    const { data } = await supabase.from('products').select('*').eq('is_available', false).order('name');
+    if (data) { globalArchived = data; notify.archived(); }
+  },
+  orders: async () => {
+    const { data } = await supabase.from('orders').select('*').order('date', { ascending: false });
+    if (data) { globalOrders = data; notify.orders(); }
+  },
+  expenses: async () => {
+    const { data } = await supabase.from('expenses').select('*').order('date', { ascending: false });
+    if (data) { globalExpenses = data; notify.expenses(); }
+  },
+  requests: async () => {
+    const { data } = await supabase.from('product_requests').select('*').order('created_at', { ascending: false });
+    if (data) { globalRequests = data; notify.requests(); }
+  },
+  reviews: async () => {
+    const { data } = await supabase.from('reviews').select('*').order('created_at', { ascending: false });
+    if (data) { globalReviews = data; notify.reviews(); }
+  },
+  admins: async () => {
+    const { data } = await supabase.from('admins').select('id, username, created_at').order('created_at');
+    if (data) { globalAdmins = data; notify.admins(); }
+  },
+  settings: async () => {
+    const { data } = await supabase.from('settings').select('*');
+    if (data) {
+      const map: Record<string, string> = {};
+      data.forEach(s => map[s.key] = s.value);
+      globalSettings = map;
+      notify.settings();
+    }
+  },
+  summaries: async () => {
+    const { data } = await supabase.from('monthly_summaries').select('*').order('year', { ascending: false }).order('month', { ascending: false });
+    if (data) { globalSummaries = data; notify.summaries(); }
   }
 };
 
-const fetchArchivedProducts = async () => {
-  const { data } = await supabase.from('products').select('*').eq('is_available', false).order('name');
-  if (data) {
-    globalArchivedProducts = data as Product[];
-    notifyArchived();
-  }
+// ── REALTIME ──
+let isInit = false;
+const initRT = () => {
+  if (isInit) return; isInit = true;
+  console.log('⚡ Singleton Realtime Core Active');
+  
+  const tables = ['products', 'orders', 'expenses', 'product_requests', 'reviews', 'admins', 'settings', 'monthly_summaries'];
+  tables.forEach(table => {
+    supabase.channel(`global-${table}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table }, () => {
+        if (table === 'products') { fetchers.products(); fetchers.archived(); }
+        else if (table === 'product_requests') fetchers.requests();
+        else if (table === 'monthly_summaries') fetchers.summaries();
+        else (fetchers as any)[table?.replace('product_', '') || table]();
+      })
+      .subscribe();
+  });
 };
 
-const fetchOrders = async () => {
-  const { data } = await supabase.from('orders').select('*').order('date', { ascending: false });
-  if (data) {
-    globalOrders = data as Order[];
-    notifyOrders();
-  }
-};
+// Initial load
+Object.values(fetchers).forEach(f => f());
+initRT();
 
-const fetchExpenses = async () => {
-  const { data } = await supabase.from('expenses').select('*').order('date', { ascending: false });
-  if (data) {
-    globalExpenses = data as Expense[];
-    notifyExpenses();
-  }
-};
-
-const fetchRequests = async () => {
-  const { data } = await supabase.from('product_requests').select('*').order('created_at', { ascending: false });
-  if (data) {
-    globalRequests = data as ProductRequest[];
-    notifyRequests();
-  }
-};
-
-const fetchReviews = async () => {
-  const { data } = await supabase.from('reviews').select('*').order('created_at', { ascending: false });
-  if (data) {
-    globalReviews = data as Review[];
-    notifyReviews();
-  }
-};
-
-// ── REALTIME SETUP (Single instance) ──
-let isRealtimeInitialized = false;
-
-const initRealtime = () => {
-  if (isRealtimeInitialized) return;
-  isRealtimeInitialized = true;
-
-  console.log('⚡ Initializing Global Realtime Store...');
-
-  // Products Channel
-  supabase.channel('global-products')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, (payload) => {
-      fetchProducts();
-      fetchArchivedProducts();
-    })
-    .subscribe();
-
-  // Orders Channel
-  supabase.channel('global-orders')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
-      fetchOrders();
-    })
-    .subscribe();
-
-  // Expenses Channel
-  supabase.channel('global-expenses')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, (payload) => {
-      fetchExpenses();
-    })
-    .subscribe();
-
-  // Requests Channel
-  supabase.channel('global-requests')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'product_requests' }, (payload) => {
-      fetchRequests();
-    })
-    .subscribe();
-
-  // Reviews Channel
-  supabase.channel('global-reviews')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'reviews' }, (payload) => {
-      fetchReviews();
-    })
-    .subscribe();
-};
-
-// Start initial load
-fetchProducts();
-fetchArchivedProducts();
-fetchOrders();
-fetchExpenses();
-fetchRequests();
-fetchReviews();
-initRealtime();
-
-// ── HOOKS (Now just consumers of the singleton) ──
+// ── CONSUMER HOOKS ──
 
 export function useProducts() {
-  const [products, setProducts] = useState(globalProducts);
-  const [archivedProducts, setArchivedProducts] = useState(globalArchivedProducts);
-  const [loading, setLoading] = useState(false);
-
+  const [products, setP] = useState(globalProducts);
+  const [archivedProducts, setA] = useState(globalArchived);
   useEffect(() => {
-    productListeners.add(setProducts);
-    archivedProductListeners.add(setArchivedProducts);
-    setProducts([...globalProducts]);
-    setArchivedProducts([...globalArchivedProducts]);
-    return () => {
-      productListeners.delete(setProducts);
-      archivedProductListeners.delete(setArchivedProducts);
-    };
+    listeners.products.add(setP); listeners.archived.add(setA);
+    setP([...globalProducts]); setA([...globalArchived]);
+    return () => { listeners.products.delete(setP); listeners.archived.delete(setA); };
   }, []);
 
-  const addProduct = async (name: string, price: number, stock: number, image?: string) => {
-    const { error } = await supabase.from('products').insert([{ name, price, stock, image, is_available: true }]);
-    if (error) toast.error(error.message);
+  return {
+    products, archivedProducts, loading: false,
+    addProduct: (n: any, p: any, s: any, i: any) => supabase.from('products').insert([{ name: n, price: p, stock: s, image: i, is_available: true }]),
+    removeProduct: (id: any) => supabase.from('products').update({ is_available: false }).eq('id', id),
+    restoreProduct: (id: any) => supabase.from('products').update({ is_available: true }).eq('id', id),
+    updateProduct: (id: any, n: any, p: any, s: any, i: any) => supabase.from('products').update({ name: n, price: p, stock: s, image: i }).eq('id', id),
+    deductStock: (id: any, q: any) => supabase.rpc('deduct_stock', { p_id: id, q: q })
   };
-
-  const removeProduct = async (id: string) => {
-    const { error } = await supabase.from('products').update({ is_available: false }).eq('id', id);
-    if (error) toast.error(error.message);
-  };
-
-  const restoreProduct = async (id: string) => {
-    const { error } = await supabase.from('products').update({ is_available: true }).eq('id', id);
-    if (error) toast.error(error.message);
-  };
-
-  const updateProduct = async (id: string, name: string, price: number, stock: number, image?: string) => {
-    const { error } = await supabase.from('products').update({ name, price, stock, image }).eq('id', id);
-    if (error) toast.error(error.message);
-  };
-
-  const deductStock = async (id: string, quantity: number) => {
-    await supabase.rpc('deduct_stock', { p_id: id, q: quantity });
-  };
-
-  return { products, archivedProducts, loading, addProduct, removeProduct, restoreProduct, updateProduct, deductStock };
 }
 
 export function useOrders() {
-  const [orders, setOrders] = useState(globalOrders);
-
+  const [orders, setO] = useState(globalOrders);
   useEffect(() => {
-    orderListeners.add(setOrders);
-    setOrders([...globalOrders]);
-    return () => { orderListeners.delete(setOrders); };
+    listeners.orders.add(setO); setO([...globalOrders]);
+    return () => { listeners.orders.delete(setO); };
   }, []);
 
-  const addOrder = async (order: Omit<Order, 'id'>) => {
-    const { error } = await supabase.from('orders').insert([order]);
-    if (error) toast.error(error.message);
-  };
-
-  const toggleStatus = async (id: string) => {
-    const order = globalOrders.find(o => o.id === id);
-    if (order) {
-      const { error } = await supabase.from('orders').update({ status: order.status === 'paid' ? 'unpaid' : 'paid' }).eq('id', id);
-      if (error) toast.error(error.message);
+  return {
+    orders,
+    addOrder: (o: any) => supabase.from('orders').insert([o]),
+    removeOrder: (id: any) => supabase.from('orders').delete().eq('id', id),
+    toggleStatus: async (id: any) => {
+      const target = globalOrders.find(o => o.id === id);
+      if (target) await supabase.from('orders').update({ status: target.status === 'paid' ? 'unpaid' : 'paid' }).eq('id', id);
     }
   };
-
-  const removeOrder = async (id: string) => {
-    const { error } = await supabase.from('orders').delete().eq('id', id);
-    if (error) toast.error(error.message);
-  };
-
-  return { orders, addOrder, toggleStatus, removeOrder };
 }
 
 export function useExpenses() {
-  const [expenses, setExpenses] = useState(globalExpenses);
-
+  const [expenses, setE] = useState(globalExpenses);
   useEffect(() => {
-    expenseListeners.add(setExpenses);
-    setExpenses([...globalExpenses]);
-    return () => { expenseListeners.delete(setExpenses); };
+    listeners.expenses.add(setE); setE([...globalExpenses]);
+    return () => { listeners.expenses.delete(setE); };
   }, []);
-
-  const addExpense = async (expense: Omit<Expense, 'id'>) => {
-    const { error } = await supabase.from('expenses').insert([expense]);
-    if (error) toast.error(error.message);
+  return {
+    expenses,
+    addExpense: (e: any) => supabase.from('expenses').insert([e]),
+    removeExpense: (id: any) => supabase.from('expenses').delete().eq('id', id)
   };
-
-  const removeExpense = async (id: string) => {
-    const { error } = await supabase.from('expenses').delete().eq('id', id);
-    if (error) toast.error(error.message);
-  };
-
-  return { expenses, addExpense, removeExpense };
 }
 
 export function useProductRequests() {
-  const [requests, setRequests] = useState(globalRequests);
-
+  const [requests, setR] = useState(globalRequests);
   useEffect(() => {
-    requestListeners.add(setRequests);
-    setRequests([...globalRequests]);
-    return () => { requestListeners.delete(setRequests); };
+    listeners.requests.add(setR); setR([...globalRequests]);
+    return () => { listeners.requests.delete(setR); };
   }, []);
-
-  const updateRequestStatus = async (id: string, status: ProductRequest['status']) => {
-    const { error } = await supabase.from('product_requests').update({ status }).eq('id', id);
-    return !error;
+  return {
+    requests, loading: false,
+    updateRequestStatus: (id: any, status: any) => supabase.from('product_requests').update({ status }).eq('id', id),
+    deleteRequest: (id: any) => supabase.from('product_requests').delete().eq('id', id),
+    clearRequestsByStatus: (status: any) => supabase.from('product_requests').delete().eq('status', status)
   };
-
-  const deleteRequest = async (id: string) => {
-    const { error } = await supabase.from('product_requests').delete().eq('id', id);
-    if (error) toast.error(error.message);
-  };
-
-  const clearRequestsByStatus = async (status: ProductRequest['status']) => {
-    const { error } = await supabase.from('product_requests').delete().eq('status', status);
-    if (error) toast.error(error.message);
-  };
-
-  return { requests, loading: false, updateRequestStatus, deleteRequest, clearRequestsByStatus };
 }
 
 export function useReviews(productId?: string) {
-  const [reviews, setReviews] = useState(globalReviews);
-
+  const [reviews, setR] = useState(globalReviews);
   useEffect(() => {
-    reviewListeners.add(setReviews);
-    setReviews([...globalReviews]);
-    return () => { reviewListeners.delete(setReviews); };
+    listeners.reviews.add(setR); setR([...globalReviews]);
+    return () => { listeners.reviews.delete(setR); };
   }, []);
-
-  const addReview = async (
-    p_id: string,
-    tele_id: string,
-    name: string,
-    rating: number,
-    comment: string,
-    user?: string
-  ) => {
-    const { error } = await supabase.from('reviews').insert([{
-      product_id: p_id,
-      telegram_id: tele_id,
-      first_name: name,
-      rating,
-      comment,
-      username: user
-    }]);
-    if (error) { toast.error(error.message); return false; }
-    toast.success('Review submitted! 🌟');
-    return true;
+  return {
+    reviews: productId ? reviews.filter(r => r.product_id === productId) : reviews,
+    loading: false,
+    addReview: async (p_id: any, tele_id: any, name: any, rating: any, comment: any, user: any) => {
+      const { error } = await supabase.from('reviews').insert([{ product_id: p_id, telegram_id: tele_id, first_name: name, rating, comment, username: user }]);
+      if (error) return false; toast.success('Review added!'); return true;
+    },
+    deleteReview: (id: any) => supabase.from('reviews').delete().eq('id', id)
   };
+}
 
-  const deleteReview = async (id: string) => {
-    const { error } = await supabase.from('reviews').delete().eq('id', id);
-    if (error) toast.error(error.message);
+export function useSettings() {
+  const [settings, setS] = useState(globalSettings);
+  useEffect(() => {
+    listeners.settings.add(setS); setS({ ...globalSettings });
+    return () => { listeners.settings.delete(setS); };
+  }, []);
+  return {
+    settings,
+    updateSetting: async (key: string, value: string) => {
+      await supabase.from('settings').upsert({ key, value });
+      toast.success('Settings updated!');
+    }
   };
+}
 
-  const filtered = productId 
-    ? reviews.filter(r => r.product_id === productId)
-    : reviews;
+export function useAdmins() {
+  const [admins, setA] = useState(globalAdmins);
+  useEffect(() => {
+    listeners.admins.add(setA); setA([...globalAdmins]);
+    return () => { listeners.admins.delete(setA); };
+  }, []);
+  return {
+    admins,
+    addAdmin: async (username: any, password: any) => {
+      const { error } = await supabase.from('admins').insert([{ username, password }]);
+      if (error) { toast.error(error.message); return false; }
+      toast.success('Admin added!'); return true;
+    },
+    updateAdmin: async (id: any, username: any, password: any) => {
+      const updates: any = { username };
+      if (password) updates.password = password;
+      const { error } = await supabase.from('admins').update(updates).eq('id', id);
+      if (error) { toast.error(error.message); return false; }
+      toast.success('Admin updated!'); return true;
+    },
+    deleteAdmin: (id: any) => supabase.from('admins').delete().eq('id', id)
+  };
+}
 
-  return { reviews: filtered, loading: false, addReview, deleteReview };
+export function useMonthlySummaries() {
+  const [summaries, setS] = useState(globalSummaries);
+  useEffect(() => {
+    listeners.summaries.add(setS); setS([...globalSummaries]);
+    return () => { listeners.summaries.delete(setS); };
+  }, []);
+  return {
+    summaries, loading: false,
+    saveSnapshot: async (data: any) => {
+      const { error } = await supabase.from('monthly_summaries').upsert(data);
+      if (error) toast.error(error.message); else toast.success('Snapshot saved!');
+    }
+  };
 }
