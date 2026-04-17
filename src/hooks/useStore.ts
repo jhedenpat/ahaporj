@@ -3,25 +3,12 @@ import { supabase } from '@/lib/supabase';
 import { Product, Order, Expense, ProductRequest, Review } from '@/types';
 import { toast } from 'sonner';
 
-// ── TYPES (Locally defined for build stability) ──
-export interface Admin {
-  id: string;
-  username: string;
-  created_at: string;
-}
-
+// ── TYPES ──
+export interface Admin { id: string; username: string; created_at: string; }
 export interface MonthlySummary {
-  id: string;
-  month: number;
-  year: number;
-  total_revenue: number;
-  total_expenses: number;
-  net_profit: number;
-  total_orders: number;
-  paid_orders: number;
-  unpaid_orders: number;
-  notes?: string;
-  updated_at: string;
+  id: string; month: number; year: number; total_revenue: number; total_expenses: number;
+  net_profit: number; total_orders: number; paid_orders: number; unpaid_orders: number;
+  notes?: string; updated_at: string;
 }
 
 // ── SINGLETON STATE ──
@@ -47,7 +34,6 @@ const listeners = {
   summaries: new Set<(s: MonthlySummary[]) => void>(),
 };
 
-// ── NOTIFIERS ──
 const notify = {
   products: () => listeners.products.forEach(l => l([...globalProducts])),
   archived: () => listeners.archived.forEach(l => l([...globalArchived])),
@@ -60,7 +46,47 @@ const notify = {
   summaries: () => listeners.summaries.forEach(l => l([...globalSummaries])),
 };
 
-// ── FETCHERS ──
+// ── ZERO-LATENCY PULSE ENGINE ──
+const patchState = (table: string, payload: any) => {
+  const { eventType, new: newRow, old: oldRow } = payload;
+  
+  const mergeList = (list: any[], idKey = 'id') => {
+    if (eventType === 'INSERT') return [newRow, ...list];
+    if (eventType === 'UPDATE') {
+      return list.map(item => (item[idKey] === (newRow[idKey] || oldRow[idKey])) ? { ...item, ...newRow } : item);
+    }
+    if (eventType === 'DELETE') return list.filter(item => item[idKey] !== oldRow[idKey]);
+    return list;
+  };
+
+  switch (table) {
+    case 'products':
+      if (eventType === 'DELETE') {
+        globalProducts = globalProducts.filter(p => p.id !== oldRow.id);
+        globalArchived = globalArchived.filter(p => p.id !== oldRow.id);
+      } else {
+        const existing = globalProducts.find(p => p.id === (newRow.id || oldRow.id)) || globalArchived.find(p => p.id === (newRow.id || oldRow.id));
+        const merged = { ...existing, ...newRow };
+        if (merged.is_available) {
+          globalProducts = [merged, ...globalProducts.filter(p => p.id !== merged.id)].sort((a,b) => a.name.localeCompare(b.name));
+          globalArchived = globalArchived.filter(p => p.id !== merged.id);
+        } else {
+          globalArchived = [merged, ...globalArchived.filter(p => p.id !== merged.id)].sort((a,b) => a.name.localeCompare(b.name));
+          globalProducts = globalProducts.filter(p => p.id !== merged.id);
+        }
+      }
+      notify.products(); notify.archived();
+      break;
+    case 'orders': globalOrders = mergeList(globalOrders).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()); notify.orders(); break;
+    case 'expenses': globalExpenses = mergeList(globalExpenses).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()); notify.expenses(); break;
+    case 'product_requests': globalRequests = mergeList(globalRequests).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()); notify.requests(); break;
+    case 'reviews': globalReviews = mergeList(globalReviews).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()); notify.reviews(); break;
+    case 'admins': globalAdmins = mergeList(globalAdmins); notify.admins(); break;
+    case 'settings': globalSettings[newRow.key] = newRow.value; notify.settings(); break;
+    case 'monthly_summaries': globalSummaries = mergeList(globalSummaries).sort((a,b) => b.year - a.year || b.month - a.month); notify.summaries(); break;
+  }
+};
+
 const fetchers = {
   products: async () => {
     const { data } = await supabase.from('products').select('*').eq('is_available', true).order('name');
@@ -104,34 +130,28 @@ const fetchers = {
   }
 };
 
-// ── REALTIME ──
 let isInit = false;
 const initRT = () => {
   if (isInit) return; isInit = true;
-  const channel = supabase.channel('shop_v1_sync_hardened');
+  const channel = supabase.channel('instant_pulse_x');
   const tables = ['products', 'orders', 'expenses', 'product_requests', 'reviews', 'admins', 'settings', 'monthly_summaries'];
   tables.forEach(table => {
-    channel.on('postgres_changes', { event: '*', schema: 'public', table }, () => {
-      if (table === 'products') { fetchers.products(); fetchers.archived(); }
-      else if (table === 'product_requests') fetchers.requests();
-      else if (table === 'monthly_summaries') fetchers.summaries();
-      else if (table === 'settings') fetchers.settings();
-      else if (table === 'reviews') fetchers.reviews();
-      else if (table === 'admins') fetchers.admins();
-      else if (table === 'orders') fetchers.orders();
-      else if (table === 'expenses') fetchers.expenses();
+    channel.on('postgres_changes', { event: '*', schema: 'public', table }, (payload) => {
+      patchState(table, payload);
     });
   });
   channel.subscribe((status) => {
-    if (status === 'SUBSCRIBED') console.log('🟢 Sync Live');
+    if (status === 'SUBSCRIBED') {
+       console.log('🟢 Zero-Latency Sync Active');
+       Object.values(fetchers).forEach(f => f());
+    }
     if (status === 'CHANNEL_ERROR') { isInit = false; setTimeout(initRT, 3000); }
   });
 };
 
-Object.values(fetchers).forEach(f => f());
 initRT();
 
-// ── CONSUMER HOOKS ──
+// ── OPTIMISTIC HOOKS ──
 
 export function useProducts() {
   const [products, setP] = useState(globalProducts);
@@ -146,61 +166,49 @@ export function useProducts() {
     products, archivedProducts, loading: false,
     addProduct: useCallback(async (n: any, p: any, s: any, i: any) => {
       const { data, error } = await supabase.from('products').insert([{ name: n, price: p, stock: s, image: i, is_available: true }]).select();
-      if (error) { toast.error(error.message); return; }
-      if (data) { globalProducts = [data[0], ...globalProducts]; notify.products(); toast.success('Product added!'); }
+      if (!error && data) { patchState('products', { eventType: 'INSERT', new: data[0] }); toast.success('Product added!'); }
+      else if (error) toast.error(error.message);
     }, []),
     removeProduct: useCallback(async (id: any) => {
-      // Optimistic instant delete
       const target = globalProducts.find(p => p.id === id);
-      if (target) {
-        globalProducts = globalProducts.filter(p => p.id !== id);
-        globalArchived = [target, ...globalArchived];
-        notify.products(); notify.archived();
-        toast.success('Product moved to archive!');
-      }
-      const { error } = await supabase.from('products').update({ is_available: false }).eq('id', id);
-      if (error) { 
-        toast.error('Failed to update server. Refreshing...'); 
-        fetchers.products(); fetchers.archived(); 
-      }
+      if (target) { patchState('products', { eventType: 'UPDATE', new: { ...target, is_available: false } }); toast.success('Archived!'); }
+      await supabase.from('products').update({ is_available: false }).eq('id', id);
     }, []),
     restoreProduct: useCallback(async (id: any) => {
-      const { error } = await supabase.from('products').update({ is_available: true }).eq('id', id);
-      if (!error) { fetchers.products(); fetchers.archived(); toast.success('Product restored!'); }
+      const target = globalArchived.find(p => p.id === id);
+      if (target) { patchState('products', { eventType: 'UPDATE', new: { ...target, is_available: true } }); toast.success('Restored!'); }
+      await supabase.from('products').update({ is_available: true }).eq('id', id);
     }, []),
     updateProduct: useCallback(async (id: any, n: any, p: any, s: any, i: any) => {
-      const { error } = await supabase.from('products').update({ name: n, price: p, stock: s, image: i }).eq('id', id);
-      if (!error) { fetchers.products(); toast.success('Product updated!'); } else toast.error(error.message);
+      const { data, error } = await supabase.from('products').update({ name: n, price: p, stock: s, image: i }).eq('id', id).select();
+      if (!error && data) { patchState('products', { eventType: 'UPDATE', new: data[0] }); toast.success('Updated!'); }
     }, []),
     deductStock: useCallback(async (id: any, q: any) => {
        await supabase.rpc('deduct_stock', { p_id: id, q: q });
-       fetchers.products();
+       // The RT event will handle the UI update
     }, [])
   };
 }
 
 export function useOrders() {
   const [orders, setO] = useState(globalOrders);
-  useEffect(() => {
-    listeners.orders.add(setO); setO([...globalOrders]);
-    return () => { listeners.orders.delete(setO); };
-  }, []);
+  useEffect(() => { listeners.orders.add(setO); setO([...globalOrders]); return () => { listeners.orders.delete(setO); }; }, []);
   return {
     orders,
     addOrder: useCallback(async (o: any) => {
-      const { error } = await supabase.from('orders').insert([o]);
-      if (!error) { fetchers.orders(); toast.success('Order placed!'); } else toast.error(error.message);
+      const { data, error } = await supabase.from('orders').insert([o]).select();
+      if (!error && data) { patchState('orders', { eventType: 'INSERT', new: data[0] }); toast.success('Order placed!'); }
     }, []),
     removeOrder: useCallback(async (id: any) => {
-      const { error } = await supabase.from('orders').delete().eq('id', id);
-      if (!error) { globalOrders = globalOrders.filter(o => o.id !== id); notify.orders(); toast.success('Order deleted!'); }
+      patchState('orders', { eventType: 'DELETE', old: { id } });
+      await supabase.from('orders').delete().eq('id', id);
     }, []),
     toggleStatus: useCallback(async (id: any) => {
       const target = globalOrders.find(o => o.id === id);
       if (target) {
         const next = target.status === 'paid' ? 'unpaid' : 'paid';
-        const { error } = await supabase.from('orders').update({ status: next }).eq('id', id);
-        if (!error) { fetchers.orders(); }
+        const { data, error } = await supabase.from('orders').update({ status: next }).eq('id', id).select();
+        if (!error && data) patchState('orders', { eventType: 'UPDATE', new: data[0] });
       }
     }, [])
   };
@@ -208,120 +216,47 @@ export function useOrders() {
 
 export function useExpenses() {
   const [expenses, setE] = useState(globalExpenses);
-  useEffect(() => {
-    listeners.expenses.add(setE); setE([...globalExpenses]);
-    return () => { listeners.expenses.delete(setE); };
-  }, []);
+  useEffect(() => { listeners.expenses.add(setE); setE([...globalExpenses]); return () => { listeners.expenses.delete(setE); }; }, []);
   return {
     expenses,
     addExpense: useCallback(async (e: any) => {
-      const { error } = await supabase.from('expenses').insert([e]);
-      if (!error) { fetchers.expenses(); toast.success('Expense recorded!'); }
+      const { data, error } = await supabase.from('expenses').insert([e]).select();
+      if (!error && data) { patchState('expenses', { eventType: 'INSERT', new: data[0] }); toast.success('Recorded!'); }
     }, []),
     removeExpense: useCallback(async (id: any) => {
-      const { error } = await supabase.from('expenses').delete().eq('id', id);
-      if (!error) { globalExpenses = globalExpenses.filter(x => x.id !== id); notify.expenses(); }
+      patchState('expenses', { eventType: 'DELETE', old: { id } });
+      await supabase.from('expenses').delete().eq('id', id);
     }, [])
   };
 }
 
+// ... All other hooks follow this same reactive pattern ...
 export function useProductRequests() {
   const [requests, setR] = useState(globalRequests);
-  useEffect(() => {
-    listeners.requests.add(setR); setR([...globalRequests]);
-    return () => { listeners.requests.delete(setR); };
-  }, []);
-  return {
-    requests, loading: false,
-    updateRequestStatus: useCallback(async (id: any, status: any) => {
-      const { error } = await supabase.from('product_requests').update({ status }).eq('id', id);
-      if (!error) fetchers.requests();
-    }, []),
-    deleteRequest: useCallback(async (id: any) => {
-      const { error } = await supabase.from('product_requests').delete().eq('id', id);
-      if (!error) { globalRequests = globalRequests.filter(r => r.id !== id); notify.requests(); }
-    }, []),
-    clearRequestsByStatus: useCallback(async (status: any) => {
-      const { error } = await supabase.from('product_requests').delete().eq('status', status);
-      if (!error) fetchers.requests();
-    }, [])
-  };
+  useEffect(() => { listeners.requests.add(setR); setR([...globalRequests]); return () => { listeners.requests.delete(setR); }; }, []);
+  return { requests, loading: false, updateRequestStatus: useCallback(async (id: any, status: any) => { const { data, error } = await supabase.from('product_requests').update({ status }).eq('id', id).select(); if (!error && data) patchState('product_requests', { eventType: 'UPDATE', new: data[0] }); }, []), deleteRequest: useCallback(async (id: any) => { patchState('product_requests', { eventType: 'DELETE', old: { id } }); await supabase.from('product_requests').delete().eq('id', id); }, []), clearRequestsByStatus: useCallback(async (status: any) => { await supabase.from('product_requests').delete().eq('status', status); fetchers.requests(); }, []) };
 }
 
 export function useReviews(productId?: string) {
   const [reviews, setR] = useState(globalReviews);
-  useEffect(() => {
-    listeners.reviews.add(setR); setR([...globalReviews]);
-    return () => { listeners.reviews.delete(setR); };
-  }, []);
-  return {
-    reviews: productId ? reviews.filter(r => r.product_id === productId) : reviews,
-    loading: false,
-    addReview: useCallback(async (p_id: any, tele_id: any, name: any, rating: any, comment: any, user: any) => {
-      const { error } = await supabase.from('reviews').insert([{ product_id: p_id, telegram_id: tele_id, first_name: name, rating, comment, username: user }]);
-      if (error) { toast.error(error.message); return false; }
-      fetchers.reviews(); toast.success('Review added!'); return true;
-    }, []),
-    deleteReview: useCallback(async (id: any) => {
-      const { error } = await supabase.from('reviews').delete().eq('id', id);
-      if (!error) { globalReviews = globalReviews.filter(r => r.id !== id); notify.reviews(); }
-    }, [])
-  };
+  useEffect(() => { listeners.reviews.add(setR); setR([...globalReviews]); return () => { listeners.reviews.delete(setR); }; }, []);
+  return { reviews: productId ? reviews.filter(r => r.product_id === productId) : reviews, loading: false, addReview: useCallback(async (p_id: any, tele_id: any, name: any, rating: any, comment: any, user: any) => { const { data, error } = await supabase.from('reviews').insert([{ product_id: p_id, telegram_id: tele_id, first_name: name, rating, comment, username: user }]).select(); if (!error && data) { patchState('reviews', { eventType: 'INSERT', new: data[0] }); toast.success('Review added!'); return true; } return false; }, []), deleteReview: useCallback(async (id: any) => { patchState('reviews', { eventType: 'DELETE', old: { id } }); await supabase.from('reviews').delete().eq('id', id); }, []) };
 }
 
 export function useSettings() {
   const [settings, setS] = useState(globalSettings);
-  useEffect(() => {
-    listeners.settings.add(setS); setS({ ...globalSettings });
-    return () => { listeners.settings.delete(setS); };
-  }, []);
-  return {
-    settings,
-    updateSetting: useCallback(async (key: string, value: string) => {
-      const { error } = await supabase.from('settings').upsert({ key, value });
-      if (!error) { fetchers.settings(); toast.success('Settings updated!'); }
-    }, [])
-  };
+  useEffect(() => { listeners.settings.add(setS); setS({ ...globalSettings }); return () => { listeners.settings.delete(setS); }; }, []);
+  return { settings, updateSetting: useCallback(async (key: string, value: string) => { const { data, error } = await supabase.from('settings').upsert({ key, value }).select(); if (!error && data) { patchState('settings', { eventType: 'UPDATE', new: data[0] }); toast.success('Settings updated!'); } }, []) };
 }
 
 export function useAdmins() {
   const [admins, setA] = useState(globalAdmins);
-  useEffect(() => {
-    listeners.admins.add(setA); setA([...globalAdmins]);
-    return () => { listeners.admins.delete(setA); };
-  }, []);
-  return {
-    admins,
-    addAdmin: useCallback(async (username: any, password: any) => {
-      const { error } = await supabase.from('admins').insert([{ username, password }]);
-      if (error) { toast.error(error.message); return false; }
-      fetchers.admins(); toast.success('Admin added!'); return true;
-    }, []),
-    updateAdmin: useCallback(async (id: any, username: any, password: any) => {
-      const updates: any = { username };
-      if (password) updates.password = password;
-      const { error } = await supabase.from('admins').update(updates).eq('id', id);
-      if (!error) { fetchers.admins(); toast.success('Admin updated!'); return true; }
-      return false;
-    }, []),
-    deleteAdmin: useCallback(async (id: any) => {
-      const { error } = await supabase.from('admins').delete().eq('id', id);
-      if (!error) { globalAdmins = globalAdmins.filter(a => a.id !== id); notify.admins(); }
-    }, [])
-  };
+  useEffect(() => { listeners.admins.add(setA); setA([...globalAdmins]); return () => { listeners.admins.delete(setA); }; }, []);
+  return { admins, addAdmin: useCallback(async (username: any, password: any) => { const { data, error } = await supabase.from('admins').insert([{ username, password }]).select(); if (!error && data) { patchState('admins', { eventType: 'INSERT', new: data[0] }); toast.success('Admin added!'); return true; } return false; }, []), updateAdmin: useCallback(async (id: any, username: any, password: any) => { const updates: any = { username }; if (password) updates.password = password; const { data, error } = await supabase.from('admins').update(updates).eq('id', id).select(); if (!error && data) { patchState('admins', { eventType: 'UPDATE', new: data[0] }); toast.success('Admin updated!'); return true; } return false; }, []), deleteAdmin: useCallback(async (id: any) => { patchState('admins', { eventType: 'DELETE', old: { id } }); await supabase.from('admins').delete().eq('id', id); }, []) };
 }
 
 export function useMonthlySummaries() {
   const [summaries, setS] = useState(globalSummaries);
-  useEffect(() => {
-    listeners.summaries.add(setS); setS([...globalSummaries]);
-    return () => { listeners.summaries.delete(setS); };
-  }, []);
-  return {
-    summaries, loading: false,
-    saveSnapshot: useCallback(async (data: any) => {
-      const { error } = await supabase.from('monthly_summaries').upsert(data);
-      if (!error) { fetchers.summaries(); toast.success('Snapshot saved!'); }
-    }, [])
-  };
+  useEffect(() => { listeners.summaries.add(setS); setS([...globalSummaries]); return () => { listeners.summaries.delete(setS); }; }, []);
+  return { summaries, loading: false, saveSnapshot: useCallback(async (data: any) => { const { data: res, error } = await supabase.from('monthly_summaries').upsert(data).select(); if (!error && res) { patchState('monthly_summaries', { eventType: 'UPDATE', new: res[0] }); toast.success('Snapshot saved!'); } }, []) };
 }
