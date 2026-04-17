@@ -320,7 +320,7 @@ export default function BuyerDashboard() {
   const displayProducts = useMemo(() => getFilteredProducts(), [getFilteredProducts]);
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 pb-80 transition-colors duration-300 w-full overflow-x-hidden">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 pb-20 transition-colors duration-300 w-full overflow-x-hidden">
       {/* Header */}
       <header className="bg-white/90 dark:bg-zinc-900/90 border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-20 shadow-sm backdrop-blur-lg">
         <div className="container max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -824,7 +824,7 @@ export default function BuyerDashboard() {
 
       {/* Checkout Selection Modal */}
       <Dialog open={isCheckoutModalOpen} onOpenChange={setIsCheckoutModalOpen}>
-        <DialogContent className="sm:max-w-[450px] rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl">
+        <DialogContent className="sm:max-w-[450px] rounded-[2.5rem] p-0 overflow-y-auto max-h-[90vh] border-none shadow-2xl custom-scrollbar">
           <div className="bg-gradient-to-br from-pink-500 to-rose-600 p-8 text-white relative">
             <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
               <ShoppingBag className="w-24 h-24" />
@@ -853,7 +853,7 @@ export default function BuyerDashboard() {
                     💵
                   </div>
                   <div className="text-left">
-                    <p className="font-bold text-zinc-900">Cash on Delivery</p>
+                    <p className="font-bold text-zinc-900">Pay with Cash</p>
                     <p className="text-xs text-zinc-500">Pay when you receive your treats</p>
                   </div>
                 </div>
