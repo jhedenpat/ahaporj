@@ -264,7 +264,6 @@ export function useOrders() {
             } else if (payload.eventType === 'DELETE') {
               setOrders(prev => prev.filter(o => o.id !== payload.old.id));
             }
-            fetchOrders(); 
         })
         .subscribe();
         
