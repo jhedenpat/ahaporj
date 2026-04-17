@@ -48,13 +48,12 @@ export function useProducts() {
     if (data) setArchivedProducts(data as Product[]);
   }, []);
 
-  const channelName = useMemo(() => `products_rt_${Math.random().toString(36).substring(7)}`, []);
 
   useEffect(() => {
     fetchProducts();
     fetchArchivedProducts();
 
-    const sub = supabase.channel(channelName)
+    const sub = supabase.channel('products-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, (payload) => {
         console.log('RT: Products Update', payload.eventType);
         const newData = payload.new as Product;
@@ -115,10 +114,12 @@ export function useProducts() {
           setArchivedProducts(prev => prev.filter(p => p.id !== oldData.id));
         }
       })
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') console.log('✅ Products Realtime Active');
+      });
 
     return () => { supabase.removeChannel(sub); };
-  }, [fetchProducts, fetchArchivedProducts, channelName]);
+  }, [fetchProducts, fetchArchivedProducts]);
 
   const addProduct = useCallback(async (name: string, price: number, stock: number, image?: string) => {
     const newProd = { id: crypto.randomUUID(), name, price, stock, image: image || null, category: 'General', is_available: true };
@@ -250,11 +251,10 @@ export function useOrders() {
     }
   }, []);
 
-    const channelName = useMemo(() => `orders_rt_${Math.random().toString(36).substring(7)}`, []);
     useEffect(() => {
       fetchOrders();
   
-      const sub = supabase.channel(channelName)
+      const sub = supabase.channel('orders-realtime')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
             console.log('RT: Orders Update', payload.eventType);
             if (payload.eventType === 'INSERT') {
@@ -265,10 +265,12 @@ export function useOrders() {
               setOrders(prev => prev.filter(o => o.id !== payload.old.id));
             }
         })
-        .subscribe();
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') console.log('✅ Orders Realtime Active');
+        });
         
       return () => { supabase.removeChannel(sub); };
-    }, [fetchOrders, channelName]);
+    }, [fetchOrders]);
 
   const addOrder = useCallback(async (order: Omit<Order, 'id'>) => {
     const newOrder = { ...order, id: crypto.randomUUID() };
