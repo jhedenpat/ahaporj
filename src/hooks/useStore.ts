@@ -115,8 +115,12 @@ export function useProducts() {
           setArchivedProducts(prev => prev.filter(p => p.id !== oldData.id));
         }
       })
-      .subscribe((status) => {
+      .subscribe((status, err) => {
         if (status === 'SUBSCRIBED') console.log(`✅ Products RT active (${channelId})`);
+        if (status === 'CHANNEL_ERROR') {
+           console.error('RT Error:', err);
+           setTimeout(fetchProducts, 5000); // Retry fetch on error
+        }
       });
 
     return () => { 

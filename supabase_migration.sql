@@ -327,12 +327,14 @@ ADD COLUMN IF NOT EXISTS is_available BOOLEAN NOT NULL DEFAULT true;
 CREATE INDEX IF NOT EXISTS products_is_available_idx ON public.products(is_available);
 
 -- ============================================================
--- 11. ENABLE REALTIME
+-- 11. ENABLE REALTIME & REPLICA IDENTITY (For Instant Updates)
 -- ============================================================
-alter publication supabase_realtime add table public.products;
-alter publication supabase_realtime add table public.orders;
-alter publication supabase_realtime add table public.expenses;
-alter publication supabase_realtime add table public.reviews;
-alter publication supabase_realtime add table public.product_requests;
-alter publication supabase_realtime add table public.settings;
-alter publication supabase_realtime add table public.admins;
+-- Replica Identity FULL ensures Supabase sends the complete row on updates
+ALTER TABLE public.products REPLICA IDENTITY FULL;
+ALTER TABLE public.orders REPLICA IDENTITY FULL;
+ALTER TABLE public.expenses REPLICA IDENTITY FULL;
+
+-- Re-enable Realtime for all tables
+DROP PUBLICATION IF EXISTS supabase_realtime;
+CREATE PUBLICATION supabase_realtime;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.products, public.orders, public.expenses, public.reviews, public.product_requests, public.settings, public.admins;

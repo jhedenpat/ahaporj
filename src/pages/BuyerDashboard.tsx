@@ -99,10 +99,14 @@ export default function BuyerDashboard() {
       }
     }
 
-    // Scroll to hero after a small delay to skip the header
-    setTimeout(() => {
-      heroRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 100);
+    // Scroll to hero after a small delay to skip the header - ONLY ON FIRST MOUNT
+    const hasScrolled = sessionStorage.getItem('has_scrolled_to_hero');
+    if (!hasScrolled) {
+      setTimeout(() => {
+        heroRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        sessionStorage.setItem('has_scrolled_to_hero', 'true');
+      }, 300);
+    }
   }, [upsertProfile]);
   const [pendingQuickRequest, setPendingQuickRequest] = useState<{ productName: string, quantity: number } | null>(null);
 
