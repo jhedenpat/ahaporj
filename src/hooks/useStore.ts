@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Product, Order, Expense, ProductRequest } from '@/types';
+import { Product, Order, Expense, ProductRequest, Review } from '@/types';
 import { toast } from 'sonner';
 
 // ── SINGLETON STATE (Outside of hooks to share across all components) ──
@@ -9,12 +9,14 @@ let globalArchivedProducts: Product[] = [];
 let globalOrders: Order[] = [];
 let globalExpenses: Expense[] = [];
 let globalRequests: ProductRequest[] = [];
+let globalReviews: Review[] = [];
 
 const productListeners = new Set<(p: Product[]) => void>();
 const archivedProductListeners = new Set<(p: Product[]) => void>();
 const orderListeners = new Set<(o: Order[]) => void>();
 const expenseListeners = new Set<(e: Expense[]) => void>();
 const requestListeners = new Set<(r: ProductRequest[]) => void>();
+const reviewListeners = new Set<(r: Review[]) => void>();
 
 // Helper to notify all listeners
 const notifyProducts = () => productListeners.forEach(l => l([...globalProducts]));
@@ -22,6 +24,7 @@ const notifyArchived = () => archivedProductListeners.forEach(l => l([...globalA
 const notifyOrders = () => orderListeners.forEach(l => l([...globalOrders]));
 const notifyExpenses = () => expenseListeners.forEach(l => l([...globalExpenses]));
 const notifyRequests = () => requestListeners.forEach(l => l([...globalRequests]));
+const notifyReviews = () => reviewListeners.forEach(l => l([...globalReviews]));
 
 // ── INITIAL FETCHERS ──
 const fetchProducts = async () => {
@@ -64,6 +67,14 @@ const fetchRequests = async () => {
   }
 };
 
+const fetchReviews = async () => {
+  const { data } = await supabase.from('reviews').select('*').order('created_at', { ascending: false });
+  if (data) {
+    globalReviews = data as Review[];
+    notifyReviews();
+  }
+};
+
 // ── REALTIME SETUP (Single instance) ──
 let isRealtimeInitialized = false;
 
@@ -76,7 +87,6 @@ const initRealtime = () => {
   // Products Channel
   supabase.channel('global-products')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, (payload) => {
-      console.log('RT: Products change', payload.eventType);
       fetchProducts();
       fetchArchivedProducts();
     })
@@ -85,7 +95,6 @@ const initRealtime = () => {
   // Orders Channel
   supabase.channel('global-orders')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
-      console.log('RT: Orders change', payload.eventType);
       fetchOrders();
     })
     .subscribe();
@@ -103,6 +112,13 @@ const initRealtime = () => {
       fetchRequests();
     })
     .subscribe();
+
+  // Reviews Channel
+  supabase.channel('global-reviews')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'reviews' }, (payload) => {
+      fetchReviews();
+    })
+    .subscribe();
 };
 
 // Start initial load
@@ -111,6 +127,7 @@ fetchArchivedProducts();
 fetchOrders();
 fetchExpenses();
 fetchRequests();
+fetchReviews();
 initRealtime();
 
 // ── HOOKS (Now just consumers of the singleton) ──
@@ -123,12 +140,11 @@ export function useProducts() {
   useEffect(() => {
     productListeners.add(setProducts);
     archivedProductListeners.add(setArchivedProducts);
-    // Sync local state if singleton changed while unmounted
     setProducts([...globalProducts]);
     setArchivedProducts([...globalArchivedProducts]);
     return () => {
       productListeners.delete(setProducts);
-      archivedProductListeners.add(setArchivedProducts);
+      archivedProductListeners.delete(setArchivedProducts);
     };
   }, []);
 
@@ -236,4 +252,46 @@ export function useProductRequests() {
   };
 
   return { requests, loading: false, updateRequestStatus, deleteRequest, clearRequestsByStatus };
+}
+
+export function useReviews(productId?: string) {
+  const [reviews, setReviews] = useState(globalReviews);
+
+  useEffect(() => {
+    reviewListeners.add(setReviews);
+    setReviews([...globalReviews]);
+    return () => { reviewListeners.delete(setReviews); };
+  }, []);
+
+  const addReview = async (
+    p_id: string,
+    tele_id: string,
+    name: string,
+    rating: number,
+    comment: string,
+    user?: string
+  ) => {
+    const { error } = await supabase.from('reviews').insert([{
+      product_id: p_id,
+      telegram_id: tele_id,
+      first_name: name,
+      rating,
+      comment,
+      username: user
+    }]);
+    if (error) { toast.error(error.message); return false; }
+    toast.success('Review submitted! 🌟');
+    return true;
+  };
+
+  const deleteReview = async (id: string) => {
+    const { error } = await supabase.from('reviews').delete().eq('id', id);
+    if (error) toast.error(error.message);
+  };
+
+  const filtered = productId 
+    ? reviews.filter(r => r.product_id === productId)
+    : reviews;
+
+  return { reviews: filtered, loading: false, addReview, deleteReview };
 }
