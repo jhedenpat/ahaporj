@@ -168,9 +168,18 @@ export function useProducts() {
   return {
     products, archivedProducts, loading: false,
     addProduct: useCallback(async (n: any, p: any, s: any, i: any) => {
+      const tempId = `temp-${Date.now()}`;
+      const tempProduct = { id: tempId, name: n, price: p, stock: s, image: i, is_available: true };
+      patchState('products', { eventType: 'INSERT', new: tempProduct });
       const { data, error } = await supabase.from('products').insert([{ name: n, price: p, stock: s, image: i, is_available: true }]).select();
-      if (!error && data) { patchState('products', { eventType: 'INSERT', new: data[0] }); toast.success('Product added!'); }
-      else if (error) toast.error(error.message);
+      if (!error && data) { 
+        patchState('products', { eventType: 'DELETE', old: { id: tempId } });
+        patchState('products', { eventType: 'INSERT', new: data[0] }); 
+        toast.success('Product added!'); 
+      } else {
+        patchState('products', { eventType: 'DELETE', old: { id: tempId } });
+        toast.error(error ? error.message : 'Failed to add product');
+      }
     }, []),
     removeProduct: useCallback(async (id: any) => {
       const target = globalProducts.find(p => p.id === id);
@@ -220,8 +229,10 @@ export function useOrders() {
       }
     }, []),
     removeOrder: useCallback(async (id: any) => {
+      const target = globalOrders.find(o => o.id === id);
       patchState('orders', { eventType: 'DELETE', old: { id } });
-      await supabase.from('orders').delete().eq('id', id);
+      const { error } = await supabase.from('orders').delete().eq('id', id);
+      if (error && target) patchState('orders', { eventType: 'INSERT', new: target });
     }, []),
     toggleStatus: useCallback(async (id: any) => {
       const target = globalOrders.find(o => o.id === id);
@@ -246,12 +257,22 @@ export function useExpenses() {
   return {
     expenses,
     addExpense: useCallback(async (e: any) => {
+      const tempId = `temp-${Date.now()}`;
+      patchState('expenses', { eventType: 'INSERT', new: { ...e, id: tempId } });
       const { data, error } = await supabase.from('expenses').insert([e]).select();
-      if (!error && data) { patchState('expenses', { eventType: 'INSERT', new: data[0] }); toast.success('Recorded!'); }
+      if (!error && data) { 
+        patchState('expenses', { eventType: 'DELETE', old: { id: tempId } });
+        patchState('expenses', { eventType: 'INSERT', new: data[0] }); 
+        toast.success('Recorded!'); 
+      } else {
+        patchState('expenses', { eventType: 'DELETE', old: { id: tempId } });
+      }
     }, []),
     removeExpense: useCallback(async (id: any) => {
+      const target = globalExpenses.find(ex => ex.id === id);
       patchState('expenses', { eventType: 'DELETE', old: { id } });
-      await supabase.from('expenses').delete().eq('id', id);
+      const { error } = await supabase.from('expenses').delete().eq('id', id);
+      if (error && target) patchState('expenses', { eventType: 'INSERT', new: target });
     }, [])
   };
 }
@@ -283,7 +304,12 @@ export function useProductRequests(telegramUserId?: string) {
         patchState('product_requests', { eventType: 'UPDATE', new: data[0] });
       }
     }, []), 
-    deleteRequest: useCallback(async (id: any) => { patchState('product_requests', { eventType: 'DELETE', old: { id } }); await supabase.from('product_requests').delete().eq('id', id); }, []), 
+    deleteRequest: useCallback(async (id: any) => { 
+      const target = globalRequests.find(r => r.id === id);
+      patchState('product_requests', { eventType: 'DELETE', old: { id } }); 
+      const { error } = await supabase.from('product_requests').delete().eq('id', id); 
+      if (error && target) patchState('product_requests', { eventType: 'INSERT', new: target });
+    }, []), 
     clearRequestsByStatus: useCallback(async (status: any) => { await supabase.from('product_requests').delete().eq('status', status); fetchers.requests(); }, []) 
   };
 }
