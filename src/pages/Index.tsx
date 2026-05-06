@@ -46,7 +46,7 @@ const Index = () => {
             🧁
           </div>
           <div>
-            <h1 className="font-display text-2xl md:text-3xl italic pink-text">Patricia Bakeshop</h1>
+            <h1 className="font-display text-2xl md:text-3xl italic pink-text">Aha Bakeshop</h1>
             <p className="text-xs text-muted-foreground font-medium tracking-wider uppercase">Order & Management</p>
           </div>
           <div className="ml-auto flex items-center gap-3">

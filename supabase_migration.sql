@@ -1,5 +1,5 @@
 -- ============================================================
--- Patricia Bakeshop - Full Migration (Safe / Idempotent)
+-- Aha Bakeshop - Full Migration (Safe / Idempotent)
 -- Run this in Supabase SQL Editor — safe to re-run anytime
 -- ============================================================
 

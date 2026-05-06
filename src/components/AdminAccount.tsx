@@ -88,7 +88,7 @@ export function AdminAccount() {
             <Input 
               value={fbName} 
               onChange={e => setFbName(e.target.value)}
-              placeholder="e.g. Patricia Bakeshop"
+              placeholder="e.g. Aha Bakeshop"
               className="bg-white/50 dark:bg-zinc-900/50"
             />
           </div>

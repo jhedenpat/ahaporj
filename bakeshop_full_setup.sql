@@ -1,5 +1,5 @@
 -- ============================================================
--- Patricia Bakeshop - COMPLETE SYSTEM SETUP
+-- Aha Bakeshop - COMPLETE SYSTEM SETUP
 -- ============================================================
 -- This script creates EVERYTHING: tables, triggers, views, and functions.
 -- Run this in your Supabase SQL Editor.
