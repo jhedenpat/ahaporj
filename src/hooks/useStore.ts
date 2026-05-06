@@ -51,7 +51,10 @@ const patchState = (table: string, payload: any) => {
   const { eventType, new: newRow, old: oldRow } = payload;
   
   const mergeList = (list: any[], idKey = 'id') => {
-    if (eventType === 'INSERT') return [newRow, ...list];
+    if (eventType === 'INSERT') {
+      if (list.some(item => item[idKey] === newRow[idKey])) return list;
+      return [newRow, ...list];
+    }
     if (eventType === 'UPDATE') {
       return list.map(item => (item[idKey] === (newRow[idKey] || oldRow[idKey])) ? { ...item, ...newRow } : item);
     }
@@ -180,8 +183,16 @@ export function useProducts() {
       await supabase.from('products').update({ is_available: true }).eq('id', id);
     }, []),
     updateProduct: useCallback(async (id: any, n: any, p: any, s: any, i: any) => {
+      const target = globalProducts.find(prod => prod.id === id) || globalArchived.find(prod => prod.id === id);
+      if (target) patchState('products', { eventType: 'UPDATE', new: { ...target, name: n, price: p, stock: s, image: i } });
       const { data, error } = await supabase.from('products').update({ name: n, price: p, stock: s, image: i }).eq('id', id).select();
-      if (!error && data) { patchState('products', { eventType: 'UPDATE', new: data[0] }); toast.success('Updated!'); }
+      if (error && target) {
+        patchState('products', { eventType: 'UPDATE', new: target });
+        toast.error('Update failed');
+      } else if (data) {
+        patchState('products', { eventType: 'UPDATE', new: data[0] });
+        toast.success('Updated!');
+      }
     }, []),
     deductStock: useCallback(async (id: any, q: any) => {
        await supabase.rpc('deduct_stock', { p_id: id, q: q });
@@ -196,8 +207,17 @@ export function useOrders() {
   return {
     orders,
     addOrder: useCallback(async (o: any) => {
+      const tempId = `temp-${Date.now()}`;
+      patchState('orders', { eventType: 'INSERT', new: { ...o, id: tempId } });
       const { data, error } = await supabase.from('orders').insert([o]).select();
-      if (!error && data) { patchState('orders', { eventType: 'INSERT', new: data[0] }); toast.success('Order placed!'); }
+      if (!error && data) { 
+        patchState('orders', { eventType: 'DELETE', old: { id: tempId } });
+        patchState('orders', { eventType: 'INSERT', new: data[0] }); 
+        toast.success('Order placed!'); 
+      } else {
+        patchState('orders', { eventType: 'DELETE', old: { id: tempId } });
+        toast.error('Failed to place order');
+      }
     }, []),
     removeOrder: useCallback(async (id: any) => {
       patchState('orders', { eventType: 'DELETE', old: { id } });
@@ -207,8 +227,14 @@ export function useOrders() {
       const target = globalOrders.find(o => o.id === id);
       if (target) {
         const next = target.status === 'paid' ? 'unpaid' : 'paid';
+        patchState('orders', { eventType: 'UPDATE', new: { ...target, status: next } });
         const { data, error } = await supabase.from('orders').update({ status: next }).eq('id', id).select();
-        if (!error && data) patchState('orders', { eventType: 'UPDATE', new: data[0] });
+        if (error) {
+           patchState('orders', { eventType: 'UPDATE', new: target });
+           toast.error('Update failed');
+        } else if (data) {
+           patchState('orders', { eventType: 'UPDATE', new: data[0] });
+        }
       }
     }, [])
   };
@@ -231,10 +257,35 @@ export function useExpenses() {
 }
 
 // ... All other hooks follow this same reactive pattern ...
-export function useProductRequests() {
+export function useProductRequests(telegramUserId?: string) {
   const [requests, setR] = useState(globalRequests);
   useEffect(() => { listeners.requests.add(setR); setR([...globalRequests]); return () => { listeners.requests.delete(setR); }; }, []);
-  return { requests, loading: false, updateRequestStatus: useCallback(async (id: any, status: any) => { const { data, error } = await supabase.from('product_requests').update({ status }).eq('id', id).select(); if (!error && data) patchState('product_requests', { eventType: 'UPDATE', new: data[0] }); }, []), deleteRequest: useCallback(async (id: any) => { patchState('product_requests', { eventType: 'DELETE', old: { id } }); await supabase.from('product_requests').delete().eq('id', id); }, []), clearRequestsByStatus: useCallback(async (status: any) => { await supabase.from('product_requests').delete().eq('status', status); fetchers.requests(); }, []) };
+  return { 
+    requests, 
+    loading: false, 
+    submitRequest: useCallback(async (telegram_id: string, first_name: string, product_name: string, description: string, quantity: number, username?: string) => {
+      const { data, error } = await supabase.from('product_requests').insert([{ telegram_id, first_name, product_name, description, quantity, username }]).select();
+      if (!error && data) { 
+        patchState('product_requests', { eventType: 'INSERT', new: data[0] }); 
+        toast.success('Request submitted!'); 
+        return true; 
+      }
+      if (error) toast.error('Failed to submit request');
+      return false;
+    }, []),
+    updateRequestStatus: useCallback(async (id: any, status: any) => { 
+      const target = globalRequests.find(r => r.id === id);
+      if (target) patchState('product_requests', { eventType: 'UPDATE', new: { ...target, status } });
+      const { data, error } = await supabase.from('product_requests').update({ status }).eq('id', id).select(); 
+      if (error && target) {
+        patchState('product_requests', { eventType: 'UPDATE', new: target });
+      } else if (data) {
+        patchState('product_requests', { eventType: 'UPDATE', new: data[0] });
+      }
+    }, []), 
+    deleteRequest: useCallback(async (id: any) => { patchState('product_requests', { eventType: 'DELETE', old: { id } }); await supabase.from('product_requests').delete().eq('id', id); }, []), 
+    clearRequestsByStatus: useCallback(async (status: any) => { await supabase.from('product_requests').delete().eq('status', status); fetchers.requests(); }, []) 
+  };
 }
 
 export function useReviews(productId?: string) {
