@@ -133,22 +133,27 @@ const fetchers = {
   }
 };
 
-let isInit = false;
+let syncChannel: ReturnType<typeof supabase.channel> | null = null;
+
 const initRT = () => {
-  if (isInit) return; isInit = true;
-  const channel = supabase.channel('instant_pulse_x');
-  const tables = ['products', 'orders', 'expenses', 'product_requests', 'reviews', 'admins', 'settings', 'monthly_summaries'];
-  tables.forEach(table => {
-    channel.on('postgres_changes', { event: '*', schema: 'public', table }, (payload) => {
-      patchState(table, payload);
-    });
+  if (syncChannel) {
+    supabase.removeChannel(syncChannel);
+  }
+  
+  syncChannel = supabase.channel('instant_pulse_x');
+  syncChannel.on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
+    patchState(payload.table, payload);
   });
-  channel.subscribe((status) => {
+  
+  syncChannel.subscribe((status) => {
     if (status === 'SUBSCRIBED') {
        console.log('🟢 Zero-Latency Sync Active');
        Object.values(fetchers).forEach(f => f());
     }
-    if (status === 'CHANNEL_ERROR') { isInit = false; setTimeout(initRT, 3000); }
+    if (status === 'CHANNEL_ERROR') { 
+      console.error('🔴 Realtime Channel Error - Retrying in 3s');
+      setTimeout(initRT, 3000); 
+    }
   });
 };
 
