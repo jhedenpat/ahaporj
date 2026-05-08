@@ -246,7 +246,9 @@ export function useOrders() {
         toast.success('Order placed!');
         // 🔔 Telegram Admin Notification
         const order = data[0];
-        const msg = `🧁 <b>New Order!</b>\n\n👤 Customer: <b>${order.customerName || 'Walk-in'}</b>\n🛒 Item: ${order.product}\n🔢 Qty: ${order.quantity}\n💰 Total: ₱${order.total}\n📅 Date: ${new Date(order.date).toLocaleString()}`;
+        const itemsList = order.items.map((i: any) => `${i.productName} (x${i.quantity})`).join(', ');
+        const totalQty = order.items.reduce((sum: number, i: any) => sum + i.quantity, 0);
+        const msg = `🧁 <b>New Order!</b>\n\n👤 Customer: <b>${order.customerName || 'Walk-in'}</b>\n🛒 Items: ${itemsList}\n🔢 Total Qty: ${totalQty}\n💰 Total: ₱${order.total}\n📅 Date: ${new Date(order.date).toLocaleString()}`;
         sendTelegramNotification(msg);
       } else {
         patchState('orders', { eventType: 'DELETE', old: { id: tempId } });
