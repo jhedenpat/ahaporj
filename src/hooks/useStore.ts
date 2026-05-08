@@ -263,14 +263,18 @@ export function useOrders() {
       const target = globalOrders.find(o => o.id === id);
       if (target) {
         const next = target.status === 'paid' ? 'unpaid' : 'paid';
+        // Optimistic update first
         patchState('orders', { eventType: 'UPDATE', new: { ...target, status: next } });
         const { data, error } = await supabase.from('orders').update({ status: next }).eq('id', id).select();
         if (error) {
-           patchState('orders', { eventType: 'UPDATE', new: target });
-           toast.error('Update failed');
-        } else if (data) {
-           patchState('orders', { eventType: 'UPDATE', new: data[0] });
+          // Revert on failure
+          patchState('orders', { eventType: 'UPDATE', new: target });
+          toast.error('Update failed: ' + error.message);
+        } else if (data && data.length > 0) {
+          // Sync with exact DB row if available
+          patchState('orders', { eventType: 'UPDATE', new: data[0] });
         }
+        // If data is empty array but no error → optimistic update already applied, keep it
       }
     }, [])
   };
