@@ -8,8 +8,11 @@ interface Props {
 }
 
 const printReceipt = (order: Order) => {
-  const receiptWindow = window.open('', '_blank', 'width=380,height=600');
-  if (!receiptWindow) return;
+  const receiptWindow = window.open('', '_blank', 'width=380,height=600,scrollbars=yes');
+  if (!receiptWindow) {
+    alert('Pop-up blocked! Please allow pop-ups for this site to print receipts.');
+    return;
+  }
 
   const dateStr = new Date(order.date).toLocaleString('en-PH', {
     year: 'numeric', month: 'long', day: 'numeric',
@@ -111,24 +114,33 @@ const printReceipt = (order: Order) => {
         Please come again.
       </div>
 
-      <script>
-        window.onload = function() { window.print(); window.onafterprint = function() { window.close(); }; };
-      </script>
     </body>
     </html>
   `);
   receiptWindow.document.close();
+  // Delay print so the document fully renders before the dialog opens
+  setTimeout(() => {
+    try {
+      receiptWindow.focus();
+      receiptWindow.print();
+      receiptWindow.onafterprint = () => receiptWindow.close();
+    } catch (e) {
+      // If auto-print fails, the window stays open for manual print
+    }
+  }, 400);
 };
 
 export function OrderList({ orders, toggleStatus, removeOrder }: Props) {
   const sorted = [...orders].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const handleToggle = (order: Order) => {
-    // If currently unpaid → going to paid → print receipt
-    if (order.status === 'unpaid') {
-      printReceipt({ ...order, status: 'paid' });
-    }
+    const willBePaid = order.status === 'unpaid';
+    // Trigger DB update first
     toggleStatus(order.id);
+    // Delay print by 600ms so Supabase update completes before print dialog opens
+    if (willBePaid) {
+      setTimeout(() => printReceipt({ ...order, status: 'paid' }), 600);
+    }
   };
 
   return (
