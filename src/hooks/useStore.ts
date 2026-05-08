@@ -3,6 +3,22 @@ import { supabase } from '@/lib/supabase';
 import { Product, Order, Expense, ProductRequest, Review } from '@/types';
 import { toast } from 'sonner';
 
+// ── TELEGRAM NOTIFICATION HELPER ──
+const sendTelegramNotification = async (message: string) => {
+  const token = globalSettings['tele_bot_token'];
+  const chatId = globalSettings['admin_tele_id'];
+  if (!token || !chatId) return; // Not configured
+  try {
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: 'HTML' }),
+    });
+  } catch (err) {
+    console.warn('Telegram notification failed:', err);
+  }
+};
+
 // ── TYPES ──
 export interface Admin { id: string; username: string; created_at: string; }
 export interface MonthlySummary {
@@ -227,7 +243,11 @@ export function useOrders() {
       if (!error && data) { 
         patchState('orders', { eventType: 'DELETE', old: { id: tempId } });
         patchState('orders', { eventType: 'INSERT', new: data[0] }); 
-        toast.success('Order placed!'); 
+        toast.success('Order placed!');
+        // 🔔 Telegram Admin Notification
+        const order = data[0];
+        const msg = `🧁 <b>New Order!</b>\n\n👤 Customer: <b>${order.customerName || 'Walk-in'}</b>\n🛒 Item: ${order.product}\n🔢 Qty: ${order.quantity}\n💰 Total: ₱${order.total}\n📅 Date: ${new Date(order.date).toLocaleString()}`;
+        sendTelegramNotification(msg);
       } else {
         patchState('orders', { eventType: 'DELETE', old: { id: tempId } });
         toast.error('Failed to place order');
@@ -293,7 +313,12 @@ export function useProductRequests(telegramUserId?: string) {
       const { data, error } = await supabase.from('product_requests').insert([{ telegram_id, first_name, product_name, description, quantity, username }]).select();
       if (!error && data) { 
         patchState('product_requests', { eventType: 'INSERT', new: data[0] }); 
-        toast.success('Request submitted!'); 
+        toast.success('Request submitted!');
+        // 🔔 Telegram Admin Notification
+        const req = data[0];
+        const handle = username ? `@${username}` : `ID: ${telegram_id}`;
+        const msg = `📋 <b>New Product Request!</b>\n\n👤 From: <b>${first_name}</b> (${handle})\n🛍 Product: ${product_name}\n📦 Qty: ${quantity}\n📝 Note: ${description || '—'}`;
+        sendTelegramNotification(msg);
         return true; 
       }
       if (error) toast.error('Failed to submit request');
